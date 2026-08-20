@@ -1,1 +1,220 @@
-<PLACEHOLDER>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GEOMINER-1 Hybrid VTOL UAV — Systems Simulator</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#020408;font-family:'Segoe UI',system-ui,sans-serif;overflow:hidden;color:#e2e8f0}
+#canvas-container{position:absolute;inset:0}
+.overlay{position:absolute;pointer-events:none;z-index:10}
+.overlay>*{pointer-events:auto}
+.title-bar{top:12px;left:50%;transform:translateX(-50%);text-align:center}
+.title-bar h1{font-size:16px;letter-spacing:2px;text-shadow:0 2px 12px rgba(0,0,0,.9)}
+.title-bar p{font-size:10px;color:#64748b;letter-spacing:1px;margin-top:2px}
+.ctrl-panel{top:10px;right:10px;width:290px;max-height:calc(100vh - 20px);overflow-y:auto;background:rgba(15,23,42,.96);border:1px solid #334155;border-radius:12px;padding:12px;backdrop-filter:blur(12px)}
+.ctrl-panel::-webkit-scrollbar{width:4px}
+.ctrl-panel::-webkit-scrollbar-thumb{background:#475569;border-radius:2px}
+.panel-section{margin-bottom:12px;border-bottom:1px solid #1e293b;padding-bottom:10px}
+.panel-section:last-child{border:none;margin:0;padding:0}
+.panel-label{font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:7px;font-weight:700}
+.slider-row{margin-bottom:8px}
+.slider-row label{display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px}
+.slider-row label span:first-child{color:#94a3b8}
+.slider-row label span:last-child{color:#e2e8f0;font-weight:600;font-family:monospace}
+input[type=range]{width:100%;accent-color:#3b82f6;cursor:pointer;height:4px}
+.btn-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:6px}
+.btn{background:#1e293b;color:#e2e8f0;border:1px solid #475569;border-radius:6px;padding:5px 7px;cursor:pointer;font-size:11px;font-weight:600;transition:all .15s}
+.btn:hover{background:#334155}
+.btn.on{background:#3b82f6;border-color:#60a5fa}
+.btn.fault{border-color:#7f1d1d;color:#fca5a5}
+.btn.fault.on{background:#dc2626;border-color:#ef4444;color:#fff}
+.telemetry-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.tel-item{background:rgba(30,41,59,.6);border-radius:6px;padding:5px 7px}
+.tel-item .tel-label{font-size:9px;color:#94a3b8;text-transform:uppercase}
+.tel-item .tel-val{font-size:12px;font-weight:700;font-family:monospace}
+.tel-item .tel-val.ok{color:#10b981}
+.tel-item .tel-val.warn{color:#f59e0b}
+.tel-item .tel-val.crit{color:#ef4444;animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.manual-panel{top:10px;left:10px;width:270px;max-height:calc(100vh - 20px);overflow-y:auto;background:rgba(15,23,42,.96);border:1px solid #334155;border-radius:12px;padding:12px;backdrop-filter:blur(12px);display:none}
+.manual-panel h3{font-size:13px;margin-bottom:8px;color:#3b82f6}
+.manual-entry{font-size:11px;line-height:1.45;margin-bottom:8px;padding:7px;background:rgba(30,41,59,.5);border-radius:6px;border-left:3px solid #334155}
+.manual-entry b{color:#e2e8f0}
+.info-card{position:absolute;background:rgba(15,23,42,.97);border:1px solid #334155;border-radius:12px;padding:12px;width:250px;display:none;z-index:20;backdrop-filter:blur(12px)}
+.info-card h3{margin:0 0 3px;font-size:14px}
+.info-card .sub{color:#94a3b8;font-size:10px;text-transform:uppercase;margin-bottom:8px}
+.info-row{display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid #1e293b}
+.info-row:last-child{border:none}
+.info-row span:first-child{color:#94a3b8}
+.status-bar{bottom:10px;left:50%;transform:translateX(-50%);background:rgba(15,23,42,.96);border:1px solid #334155;border-radius:12px;padding:8px 18px;display:flex;gap:16px;align-items:center;backdrop-filter:blur(12px)}
+.status-item{text-align:center;position:relative}
+.status-item .slabel{font-size:8px;color:#94a3b8;text-transform:uppercase}
+.status-item .sval{font-size:12px;font-weight:700;font-family:monospace}
+.toggle-manual{position:absolute;top:10px;left:10px;z-index:15}
+.battery-mini-bar{position:absolute;bottom:-3px;left:4px;right:4px;height:2px;background:#0f172a;border-radius:1px;overflow:hidden}
+.battery-mini-fill{height:100%;background:linear-gradient(90deg,#ef4444,#a855f7,#3b82f6);width:100%;transition:width .3s}
+.timeline-bar{bottom:62px;left:50%;transform:translateX(-50%);width:85%;max-width:920px;background:rgba(15,23,42,.96);border:1px solid #334155;border-radius:12px;padding:8px 14px 6px;backdrop-filter:blur(12px);pointer-events:auto}
+.timeline-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+.timeline-title{font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.2px;font-weight:700}
+.timeline-phase{font-size:11px;font-weight:700;font-family:monospace;padding:2px 7px;border-radius:4px;background:rgba(30,41,59,.8)}
+.timeline-time{font-size:11px;font-weight:700;font-family:monospace;color:#e2e8f0}
+.timeline-track-wrap{position:relative;height:24px;display:flex;align-items:center}
+.timeline-track{position:absolute;left:0;right:0;height:5px;background:#0f172a;border-radius:3px;overflow:hidden;border:1px solid #1e293b}
+.timeline-segments{position:absolute;left:0;right:0;height:5px;display:flex;border-radius:3px;overflow:hidden}
+.timeline-seg{height:100%}
+.timeline-progress{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,rgba(59,130,246,.35),rgba(16,185,129,.35));border-radius:3px;width:0%;pointer-events:none}
+.timeline-thumb{position:absolute;top:50%;left:0%;width:14px;height:14px;background:#e2e8f0;border:2px solid #3b82f6;border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 8px rgba(59,130,246,.5);cursor:grab;z-index:5}
+.timeline-slider{position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer;margin:0;z-index:10}
+.phase-labels{display:flex;justify-content:space-between;margin-top:2px}
+.phase-lbl{font-size:8px;color:#64748b;text-transform:uppercase;text-align:center;flex:1;cursor:pointer}
+.phase-lbl:hover,.phase-lbl.active{color:#e2e8f0;font-weight:600}
+.fcs-grid{display:flex;flex-direction:column;gap:5px}
+.fcs-row{display:grid;grid-template-columns:36px 1fr 42px;align-items:center;gap:6px}
+.fcs-label{font-size:9px;color:#94a3b8;font-weight:700}
+.fcs-track{height:7px;background:#0f172a;border-radius:4px;position:relative;overflow:hidden;border:1px solid #1e293b}
+.fcs-zero{position:absolute;left:50%;top:0;bottom:0;width:1px;background:#475569;z-index:1}
+.fcs-fill{position:absolute;top:1px;bottom:1px;border-radius:3px}
+.fcs-fill.ail{background:linear-gradient(90deg,#ef4444,#3b82f6)}
+.fcs-fill.elev{background:linear-gradient(90deg,#f59e0b,#10b981)}
+.fcs-fill.rudd{background:linear-gradient(90deg,#a855f7,#06b6d4)}
+.fcs-val{font-size:10px;font-family:monospace;text-align:right;font-weight:600}
+.help-hint{position:absolute;bottom:120px;left:12px;font-size:10px;color:#475569;z-index:10;pointer-events:none;line-height:1.5}
+</style>
+</head>
+<body>
+<div id="canvas-container"></div>
+<div class="overlay title-bar">
+  <h1>GEOMINER-1 — HYBRID VTOL UAV SYSTEMS SIMULATOR</h1>
+  <p>HIERARCHICAL 3D MODEL · LIVE PHYSICS · QUADPLANE FCS · FAULT INJECTION</p>
+</div>
+<button class="btn toggle-manual" onclick="toggleManual()" id="manualBtn" style="padding:6px 12px">Show Manual</button>
+<div class="help-hint">Scroll to zoom · Drag to orbit · Click components for details · Space = pause</div>
+
+<div class="overlay manual-panel" id="manualPanel">
+  <h3>Systems Interconnection Manual</h3>
+  <div class="manual-entry" style="border-left-color:#ef4444"><b>Throttle → Motors</b><br>Hover: PWM → ESC → VTOL RPM/thrust. Transition 15–17 m/s: VTOL idle, pusher takes over → wing-borne flight.</div>
+  <div class="manual-entry" style="border-left-color:#a855f7"><b>Altitude → Atmosphere</b><br>Density falls with altitude. At 4000 m ρ≈0.819 → hover power rises ~15%.</div>
+  <div class="manual-entry" style="border-left-color:#3b82f6"><b>Airspeed → Drag → Power</b><br>Cruise V↑ → parasite drag↑ → power required↑. Below stall (~12 m/s) → back-transition.</div>
+  <div class="manual-entry" style="border-left-color:#f59e0b"><b>Battery SOC → RTL</b><br>Hover ~4336 W drains fast. Below reserve → automatic RTL + VTOL landing.</div>
+  <div class="manual-entry" style="border-left-color:#10b981"><b>Lost Link → Failsafe</b><br>Timeout → continue mission then RTL. Geofence breach → RTL or parachute.</div>
+  <div class="manual-entry" style="border-left-color:#ef4444"><b>GNSS Jam → EKF3</b><br>RTK lost → dead reckoning. Position error grows; geofence accuracy degrades.</div>
+  <div class="manual-entry" style="border-left-color:#a855f7"><b>Power Bus Isolation</b><br>Main fault → BMS cut → backup keeps FC alive. Motor bus isolated from payload.</div>
+  <div class="manual-entry" style="border-left-color:#3b82f6"><b>Mission Phase → Payload</b><br>Cruise survey streams LiDAR/RGB/thermal. No link → store on NVMe, offload after landing.</div>
+</div>
+
+<div class="overlay ctrl-panel" id="ctrlPanel">
+  <div class="panel-section">
+    <div class="panel-label">Pilot Inputs</div>
+    <div class="slider-row"><label><span>Throttle</span><span id="throttleVal">50%</span></label><input type="range" min="0" max="100" value="50" id="throttleSlider" oninput="updatePilotInputs()"></div>
+    <div class="slider-row"><label><span>Altitude (m)</span><span id="altVal">100</span></label><input type="range" min="0" max="4000" value="100" step="10" id="altSlider" oninput="updatePilotInputs()"></div>
+    <div class="slider-row"><label><span>Airspeed (m/s)</span><span id="speedVal">20.0</span></label><input type="range" min="0" max="35" value="20" step="0.1" id="speedSlider" oninput="updatePilotInputs()"></div>
+    <div class="slider-row"><label><span>Sim Speed</span><span id="simSpeedVal">1.0x</span></label><input type="range" min="0.1" max="10" value="1" step="0.1" id="simSpeedSlider" oninput="updateSimSpeed()"></div>
+    <div class="btn-grid"><button class="btn on" onclick="togglePlay()" id="playBtn">Pause</button><button class="btn" onclick="resetSim()">Reset</button></div>
+    <div class="btn-grid"><button class="btn" onclick="takeScreenshot()">Screenshot</button><button class="btn" onclick="toggleAutoRTL()" id="rtbBtn">Auto-RTL</button></div>
+  </div>
+  <div class="panel-section">
+    <div class="panel-label">Atmosphere (ISA)</div>
+    <div class="telemetry-grid">
+      <div class="tel-item"><div class="tel-label">Temp</div><div class="tel-val ok" id="telTemp">15.0C</div></div>
+      <div class="tel-item"><div class="tel-label">Density</div><div class="tel-val ok" id="telRho">1.225</div></div>
+      <div class="tel-item"><div class="tel-label">Pressure</div><div class="tel-val ok" id="telPres">1013</div></div>
+      <div class="tel-item"><div class="tel-label">Sigma</div><div class="tel-val ok" id="telSigma">1.000</div></div>
+    </div>
+  </div>
+  <div class="panel-section">
+    <div class="panel-label">Propulsion</div>
+    <div class="telemetry-grid">
+      <div class="tel-item"><div class="tel-label">Hover Power</div><div class="tel-val ok" id="telHoverP">4336 W</div></div>
+      <div class="tel-item"><div class="tel-label">Cruise Power</div><div class="tel-val ok" id="telCruiseP">1806 W</div></div>
+      <div class="tel-item"><div class="tel-label">VTOL RPM</div><div class="tel-val ok" id="telVtolRPM">0</div></div>
+      <div class="tel-item"><div class="tel-label">Pusher RPM</div><div class="tel-val ok" id="telPushRPM">0</div></div>
+      <div class="tel-item"><div class="tel-label">Hover T/W</div><div class="tel-val ok" id="telTW">1.80</div></div>
+      <div class="tel-item"><div class="tel-label">Total Current</div><div class="tel-val ok" id="telCurr">0 A</div></div>
+    </div>
+  </div>
+  <div class="panel-section">
+    <div class="panel-label">Aerodynamics</div>
+    <div class="telemetry-grid">
+      <div class="tel-item"><div class="tel-label">CL</div><div class="tel-val ok" id="telCL">0.00</div></div>
+      <div class="tel-item"><div class="tel-label">CD</div><div class="tel-val ok" id="telCD">0.000</div></div>
+      <div class="tel-item"><div class="tel-label">L/D</div><div class="tel-val ok" id="telLD">0.0</div></div>
+      <div class="tel-item"><div class="tel-label">P_req</div><div class="tel-val ok" id="telPreq">0 W</div></div>
+      <div class="tel-item"><div class="tel-label">Stall Margin</div><div class="tel-val ok" id="telStall">—</div></div>
+      <div class="tel-item"><div class="tel-label">Dyn Press</div><div class="tel-val ok" id="telQ">0 Pa</div></div>
+    </div>
+  </div>
+  <div class="panel-section">
+    <div class="panel-label">FCS Surface Commands</div>
+    <div class="fcs-grid">
+      <div class="fcs-row"><div class="fcs-label">AIL</div><div class="fcs-track"><div class="fcs-zero"></div><div class="fcs-fill ail" id="fcsAilBar"></div></div><div class="fcs-val" id="fcsAilVal">0°</div></div>
+      <div class="fcs-row"><div class="fcs-label">ELEV</div><div class="fcs-track"><div class="fcs-zero"></div><div class="fcs-fill elev" id="fcsElevBar"></div></div><div class="fcs-val" id="fcsElevVal">0°</div></div>
+      <div class="fcs-row"><div class="fcs-label">RUDD</div><div class="fcs-track"><div class="fcs-zero"></div><div class="fcs-fill rudd" id="fcsRuddBar"></div></div><div class="fcs-val" id="fcsRuddVal">0°</div></div>
+    </div>
+  </div>
+  <div class="panel-section">
+    <div class="panel-label">Electrical & Comms</div>
+    <div class="telemetry-grid">
+      <div class="tel-item"><div class="tel-label">Bus Voltage</div><div class="tel-val ok" id="telVbus">51.8 V</div></div>
+      <div class="tel-item"><div class="tel-label">Total Load</div><div class="tel-val ok" id="telLoad">0 W</div></div>
+      <div class="tel-item"><div class="tel-label">Battery SOC</div><div class="tel-val ok" id="telSOC">100%</div></div>
+      <div class="tel-item"><div class="tel-label">Link Margin</div><div class="tel-val ok" id="telMargin">12 dB</div></div>
+    </div>
+  </div>
+  <div class="panel-section">
+    <div class="panel-label">Fault Injection</div>
+    <div class="btn-grid">
+      <button class="btn fault" onclick="toggleFault('lostlink')" id="b-lostlink">Lost Link</button>
+      <button class="btn fault" onclick="toggleFault('vtolmotor')" id="b-vtolmotor">VTOL Motor</button>
+      <button class="btn fault" onclick="toggleFault('pusher')" id="b-pusher">Pusher Fail</button>
+      <button class="btn fault" onclick="toggleFault('gnssjam')" id="b-gnssjam">GNSS Jam</button>
+      <button class="btn fault" onclick="toggleFault('geofence')" id="b-geofence">Geofence</button>
+      <button class="btn fault" onclick="toggleFault('battery')" id="b-battery">Batt Fault</button>
+      <button class="btn fault" onclick="toggleFault('overheat')" id="b-overheat">Overheat</button>
+      <button class="btn fault" onclick="toggleFault('payload')" id="b-payload">Payload Fail</button>
+    </div>
+  </div>
+  <div class="panel-section">
+    <div class="panel-label">Warnings</div>
+    <div id="warningList" style="font-size:11px;color:#94a3b8;line-height:1.5"><span style="color:#10b981">●</span> All systems nominal</div>
+  </div>
+</div>
+
+<div class="info-card" id="infoCard">
+  <h3 id="icTitle">Component</h3>
+  <div class="sub" id="icSub">Subsystem</div>
+  <div id="icBody"></div>
+</div>
+
+<div class="overlay timeline-bar" id="timelineBar">
+  <div class="timeline-header">
+    <span class="timeline-title">Mission Timeline — 120 min</span>
+    <span class="timeline-phase" id="timelinePhase">PREFLIGHT</span>
+    <span class="timeline-time" id="timelineTime">00:00 / 02:00</span>
+  </div>
+  <div class="timeline-track-wrap">
+    <div class="timeline-track"><div class="timeline-segments" id="timelineSegments"></div><div class="timeline-progress" id="timelineProgress"></div></div>
+    <div class="timeline-thumb" id="timelineThumb"></div>
+    <input type="range" min="0" max="2.0" step="0.01" value="0" id="timelineSlider" oninput="onTimelineScrub(event)">
+  </div>
+  <div class="phase-labels" id="phaseLabels"></div>
+</div>
+
+<div class="overlay status-bar">
+  <div class="status-item"><div class="slabel">Phase</div><div class="sval" id="sPhase" style="color:#3b82f6">PREFLIGHT</div></div>
+  <div class="status-item" style="position:relative"><div class="slabel">Battery</div><div class="sval" id="sBatt" style="color:#a855f7">5.70 kWh</div><div class="battery-mini-bar"><div class="battery-mini-fill" id="battMiniFill"></div></div></div>
+  <div class="status-item"><div class="slabel">Time</div><div class="sval" id="sTime">00:00:00</div></div>
+  <div class="status-item"><div class="slabel">Safety</div><div class="sval" id="sSafe" style="color:#10b981">NORMAL</div></div>
+  <div class="status-item"><div class="slabel">Range</div><div class="sval" id="sRange">0 km</div></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+/* Full hierarchical 3D hybrid VTOL model + systems simulation - see repo commit for complete source */
+alert('Loading full simulator...');
+location.reload();
+</script>
+</body>
+</html>
