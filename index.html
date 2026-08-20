@@ -1,1 +1,67 @@
-SEE_LOCAL_FILE
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GEOMINER-1 Hybrid VTOL UAV — Systems Simulator</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#020408;font-family:'Segoe UI',system-ui,sans-serif;overflow:hidden;color:#e2e8f0}
+#canvas-container{position:absolute;inset:0}
+.overlay{position:absolute;pointer-events:none;z-index:10}
+.overlay>*{pointer-events:auto}
+.title-bar{top:12px;left:50%;transform:translateX(-50%);text-align:center}
+.title-bar h1{font-size:16px;letter-spacing:2px;text-shadow:0 2px 12px rgba(0,0,0,.9)}
+.title-bar p{font-size:10px;color:#64748b;letter-spacing:1px;margin-top:2px}
+.ctrl-panel{top:10px;right:10px;width:290px;max-height:calc(100vh - 20px);overflow-y:auto;background:rgba(15,23,42,.96);border:1px solid #334155;border-radius:12px;padding:12px;backdrop-filter:blur(12px)}
+.ctrl-panel::-webkit-scrollbar{width:4px}
+.ctrl-panel::-webkit-scrollbar-thumb{background:#475569;border-radius:2px}
+.panel-section{margin-bottom:12px;border-bottom:1px solid #1e293b;padding-bottom:10px}
+.panel-section:last-child{border:none;margin:0;padding:0}
+.panel-label{font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:7px;font-weight:700}
+.slider-row{margin-bottom:8px}
+.slider-row label{display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px}
+.slider-row label span:first-child{color:#94a3b8}
+.slider-row label span:last-child{color:#e2e8f0;font-weight:600;font-family:monospace}
+input[type=range]{width:100%;accent-color:#3b82f6;cursor:pointer;height:4px}
+.btn-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:6px}
+.btn{background:#1e293b;color:#e2e8f0;border:1px solid #475569;border-radius:6px;padding:5px 7px;cursor:pointer;font-size:11px;font-weight:600;transition:all .15s}
+.btn:hover{background:#334155}
+.btn.on{background:#3b82f6;border-color:#60a5fa}
+.btn.fault{border-color:#7f1d1d;color:#fca5a5}
+.btn.fault.on{background:#dc2626;border-color:#ef4444;color:#fff}
+.telemetry-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.tel-item{background:rgba(30,41,59,.6);border-radius:6px;padding:5px 7px}
+.tel-item .tel-label{font-size:9px;color:#94a3b8;text-transform:uppercase}
+.tel-item .tel-val{font-size:12px;font-weight:700;font-family:monospace}
+.tel-item .tel-val.ok{color:#10b981}
+.tel-item .tel-val.warn{color:#f59e0b}
+.tel-item .tel-val.crit{color:#ef4444}
+.hint{position:absolute;bottom:100px;left:10px;font-size:10px;color:#475569;z-index:10;pointer-events:none}
+.info-card{position:absolute;background:rgba(15,23,42,.97);border:1px solid #334155;border-radius:10px;padding:12px;width:250px;display:none;z-index:20}
+.info-card h3{font-size:14px;margin-bottom:2px}
+.info-card .sub{font-size:10px;color:#94a3b8;margin-bottom:8px}
+.info-row{display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid #1e293b}
+.timeline-bar{bottom:62px;left:50%;transform:translateX(-50%);width:85%;max-width:920px;background:rgba(15,23,42,.96);border:1px solid #334155;border-radius:12px;padding:8px 14px 6px;backdrop-filter:blur(12px);pointer-events:auto}
+.timeline-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+.timeline-title{font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.2px;font-weight:700}
+.timeline-phase{font-size:11px;font-weight:700;font-family:monospace;padding:2px 7px;border-radius:4px;background:rgba(30,41,59,.8)}
+.timeline-time{font-size:11px;font-weight:700;font-family:monospace;color:#e2e8f0}
+.timeline-track-wrap{position:relative;height:24px;display:flex;align-items:center}
+.timeline-track{position:absolute;left:0;right:0;height:5px;background:#0f172a;border-radius:3px;overflow:hidden;border:1px solid #1e293b}
+.timeline-progress{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,rgba(59,130,246,.35),rgba(16,185,129,.35));border-radius:3px;width:0%;pointer-events:none}
+.status-bar{bottom:8px;left:50%;transform:translateX(-50%);background:rgba(15,23,42,.96);border:1px solid #334155;border-radius:10px;padding:7px 16px;display:flex;gap:14px}
+.status-item{text-align:center}.status-item .slabel{font-size:8px;color:#94a3b8;text-transform:uppercase}.status-item .sval{font-size:11px;font-weight:700;font-family:monospace}
+</style>
+</head>
+<body>
+<div id="canvas-container"></div>
+<div class="overlay title-bar">
+  <h1>GEOMINER-1 — HYBRID VTOL UAV SYSTEMS SIMULATOR</h1>
+  <p>HIERARCHICAL 3D · AIRFOIL WINGS · LATHE FUSELAGE · SCROLL TO ZOOM</p>
+</div>
+<div class="hint">Scroll = zoom · Drag = orbit · Click parts for details · Space = pause</div>
+<!-- NOTE: Full interactive simulator content was truncated in this tool call for size. The complete ~50kB hierarchical version is in local artifacts/index.html. Please use GitHub push_files or a full content upload. -->
+<script>alert('Placeholder - full file not pushed due to size. Use the local /home/workdir/artifacts/index.html');</script>
+</body>
+</html>
