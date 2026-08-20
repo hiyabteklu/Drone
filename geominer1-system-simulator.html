@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GEOMINER-1 Hybrid VTOL UAV — Integrated Systems Simulator</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#020408; font-family:'Segoe UI',system-ui,sans-serif; overflow:hidden; color:#e2e8f0; }
+  #canvas-container { position:absolute; top:0; left:0; width:100vw; height:100vh; }
+  .overlay { position:absolute; pointer-events:none; z-index:10; }
+  .overlay > * { pointer-events:auto; }
+  .title-bar { top:10px; left:50%; transform:translateX(-50%); text-align:center; }
+  .title-bar h1 { font-size:17px; letter-spacing:2px; text-shadow:0 2px 16px rgba(0,0,0,0.9); }
+  .title-bar p { font-size:10px; color:#64748b; letter-spacing:1px; margin-top:2px; }
+  .ctrl-panel { top:10px; right:10px; width:300px; max-height:calc(100vh - 20px); overflow-y:auto; background:rgba(15,23,42,0.96); border:1px solid #334155; border-radius:12px; padding:14px; backdrop-filter:blur(12px); }
+  .ctrl-panel::-webkit-scrollbar { width:4px; }
+  .ctrl-panel::-webkit-scrollbar-thumb { background:#475569; border-radius:2px; }
+  .panel-section { margin-bottom:14px; border-bottom:1px solid #1e293b; padding-bottom:12px; }
+  .panel-section:last-child { border:none; margin:0; padding:0; }
+  .panel-label { font-size:9px; color:#94a3b8; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; font-weight:700; }
+  .slider-row { margin-bottom:10px; }
+  .slider-row label { display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px; }
+  .slider-row label span:first-child { color:#94a3b8; }
+  .slider-row label span:last-child { color:#e2e8f0; font-weight:600; font-family:monospace; }
+  input[type=range] { width:100%; accent-color:#3b82f6; cursor:pointer; height:4px; }
+  .btn-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:8px; }
+  .btn { background:#1e293b; color:#e2e8f0; border:1px solid #475569; border-radius:6px; padding:6px 8px; cursor:pointer; font-size:11px; font-weight:600; transition:all .15s; }
+  .btn:hover { background:#334155; }
+  .btn.on { background:#3b82f6; border-color:#60a5fa; }
+  .btn.fault { border-color:#7f1d1d; color:#fca5a5; }
+  .btn.fault.on { background:#dc2626; border-color:#ef4444; color:#fff; }
+  .telemetry-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  .tel-item { background:rgba(30,41,59,0.6); border-radius:6px; padding:6px 8px; }
+  .tel-item .tel-label { font-size:9px; color:#94a3b8; text-transform:uppercase; }
+  .tel-item .tel-val { font-size:13px; font-weight:700; font-family:monospace; }
+  .tel-item .tel-val.ok { color:#10b981; }
+  .tel-item .tel-val.warn { color:#f59e0b; }
+  .tel-item .tel-val.crit { color:#ef4444; animation:pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+  .manual-panel { top:10px; left:10px; width:280px; max-height:calc(100vh - 20px); overflow-y:auto; background:rgba(15,23,42,0.96); border:1px solid #334155; border-radius:12px; padding:14px; backdrop-filter:blur(12px); display:none; }
+  .manual-panel h3 { font-size:13px; margin-bottom:8px; color:#3b82f6; }
+  .manual-entry { font-size:11px; line-height:1.5; margin-bottom:10px; padding:8px; background:rgba(30,41,59,0.5); border-radius:6px; border-left:3px solid #334155; }
+  .manual-entry b { color:#e2e8f0; }
+  .info-card { position:absolute; background:rgba(15,23,42,0.96); border:1px solid #334155; border-radius:12px; padding:14px; width:260px; display:none; z-index:20; backdrop-filter:blur(12px); }
+  .info-card h3 { margin:0 0 4px; font-size:15px; }
+  .info-card .sub { color:#94a3b8; font-size:10px; text-transform:uppercase; margin-bottom:10px; }
+  .info-row { display:flex; justify-content:space-between; font-size:11px; padding:4px 0; border-bottom:1px solid #1e293b; }
+  .info-row:last-child { border:none; }
+  .info-row span:first-child { color:#94a3b8; }
+  .status-bar { bottom:10px; left:50%; transform:translateX(-50%); background:rgba(15,23,42,0.96); border:1px solid #334155; border-radius:12px; padding:10px 20px; display:flex; gap:18px; align-items:center; backdrop-filter:blur(12px); }
+  .status-item { text-align:center; position:relative; }
+  .status-item .slabel { font-size:8px; color:#94a3b8; text-transform:uppercase; }
+  .status-item .sval { font-size:12px; font-weight:700; font-family:monospace; }
+  .toggle-manual { position:absolute; top:10px; left:10px; z-index:15; }
+  .battery-mini-bar { position:absolute; bottom:-3px; left:4px; right:4px; height:2px; background:#0f172a; border-radius:1px; overflow:hidden; }
+  .battery-mini-fill { height:100%; background:linear-gradient(90deg, #ef4444, #a855f7, #3b82f6); width:100%; transition:width 0.3s ease; }
+  .timeline-bar { bottom:68px; left:50%; transform:translateX(-50%); width:85%; max-width:960px; background:rgba(15,23,42,0.96); border:1px solid #334155; border-radius:12px; padding:10px 16px 8px; backdrop-filter:blur(12px); pointer-events:auto; }
+  .timeline-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+  .timeline-title { font-size:9px; color:#94a3b8; text-transform:uppercase; letter-spacing:1.5px; font-weight:700; }
+  .timeline-phase { font-size:11px; font-weight:700; font-family:monospace; padding:2px 8px; border-radius:4px; background:rgba(30,41,59,0.8); }
+  .timeline-time { font-size:11px; font-weight:700; font-family:monospace; color:#e2e8f0; }
+  .timeline-track-wrap { position:relative; height:28px; display:flex; align-items:center; }
+  .timeline-track { position:absolute; left:0; right:0; height:5px; background:#0f172a; border-radius:3px; overflow:hidden; border:1px solid #1e293b; }
+  .timeline-segments { position:absolute; left:0; right:0; height:5px; display:flex; border-radius:3px; overflow:hidden; }
+  .timeline-seg { height:100%; transition:opacity 0.2s; }
+  .timeline-seg:hover { opacity:0.85; }
+  .timeline-progress { position:absolute; left:0; top:0; bottom:0; background:linear-gradient(90deg, rgba(59,130,246,0.35), rgba(16,185,129,0.35)); border-radius:3px; width:0%; pointer-events:none; transition:width 0.05s linear; }
+  .timeline-thumb { position:absolute; top:50%; left:0%; width:16px; height:16px; background:#e2e8f0; border:2px solid #3b82f6; border-radius:50%; transform:translate(-50%, -50%); box-shadow:0 0 10px rgba(59,130,246,0.6), 0 2px 4px rgba(0,0,0,0.4); cursor:grab; z-index:5; transition:left 0.05s linear; }
+  .timeline-thumb:active { cursor:grabbing; transform:translate(-50%, -50%) scale(1.15); }
+  .timeline-slider { position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer; margin:0; z-index:10; }
+  .phase-labels { display:flex; justify-content:space-between; margin-top:2px; padding:0 2px; }
+  .phase-lbl { font-size:8px; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; text-align:center; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:0 2px; cursor:pointer; transition:color 0.15s; }
+  .phase-lbl:hover { color:#e2e8f0; }
+  .phase-lbl.active { color:#e2e8f0; font-weight:600; }
+  .fcs-grid { display:flex; flex-direction:column; gap:6px; }
+  .fcs-row { display:grid; grid-template-columns:36px 1fr 44px; align-items:center; gap:8px; }
+  .fcs-label { font-size:9px; color:#94a3b8; font-weight:700; letter-spacing:0.5px; }
+  .fcs-track { height:8px; background:#0f172a; border-radius:4px; position:relative; overflow:hidden; border:1px solid #1e293b; }
+  .fcs-zero { position:absolute; left:50%; top:0; bottom:0; width:1px; background:#475569; z-index:1; }
+  .fcs-fill { position:absolute; top:1px; bottom:1px; border-radius:3px; transition:all 0.15s ease-out; }
+  .fcs-fill.ail { background:linear-gradient(90deg, #ef4444, #3b82f6); }
+  .fcs-fill.elev { background:linear-gradient(90deg, #f59e0b, #10b981); }
+  .fcs-fill.rudd { background:linear-gradient(90deg, #a855f7, #06b6d4); }
+  .fcs-val { font-size:10px; font-family:monospace; text-align:right; font-weight:600; }
+  .pkt-tooltip { position:absolute; background:rgba(15,23,42,0.95); border:1px solid #334155; border-radius:6px; padding:6px 10px; font-size:10px; font-family:monospace; color:#e2e8f0; pointer-events:none; z-index:30; display:none; white-space:nowrap; }
+  .pkt-tooltip .pkt-label { color:#94a3b8; font-size:9px; }
+  .pkt-tooltip .pkt-val { color:#3b82f6; font-weight:700; }
+</style>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+
+<div class="overlay title-bar">
+  <h1>GEOMINER-1 — HYBRID VTOL UAV INTEGRATED SYSTEMS SIMULATOR</h1>
+  <p>3D CUTAWAY WITH LIVE PHYSICS, QUADPLANE FCS & FAULT INJECTION</p>
+</div>
+
+<button class="btn toggle-manual" onclick="toggleManual()" id="manualBtn" style="padding:6px 12px;">Show Manual</button>
+
+<div class="overlay manual-panel" id="manualPanel">
+  <h3>Systems Interconnection Manual</h3>
+  <div class="manual-entry" style="border-left-color:#ef4444;">
+    <b>Throttle -> VTOL Motors / Pusher Motor</b><br>
+    Hover throttle sets PWM -> ESC commutation -> Motor RPM and thrust.<br>
+    Transition airspeed 15-17 m/s -> VTOL motors idle, pusher active -> Wing-borne lift.
+  </div>
+  <div class="manual-entry" style="border-left-color:#a855f7;">
+    <b>Altitude -> Atmosphere -> All Systems</b><br>
+    Altitude up (max 4000m ASL) -> rho down, T down -> Hover power up.<br>
+    rho at 4000m = 0.819 kg/m3 -> Hover power derates ~15%.
+  </div>
+  <div class="manual-entry" style="border-left-color:#3b82f6;">
+    <b>Airspeed -> Drag -> Power Required</b><br>
+    V up in cruise -> Parasite drag up -> Power required up.<br>
+    V below stall (~12 m/s) -> Wing drop, FCS triggers back-transition.
+  </div>
+  <div class="manual-entry" style="border-left-color:#f59e0b;">
+    <b>Battery SOC -> Flight Time -> RTL Trigger</b><br>
+    High hover power (4336W) -> Rapid SOC drain -> 6 min VTOL budget.<br>
+    SOC below reserve margin -> Automatic RTL -> Back-transition + VTOL land.
+  </div>
+  <div class="manual-entry" style="border-left-color:#10b981;">
+    <b>Lost Link -> Safety Manager -> RTL</b><br>
+    Telemetry dropout > timeout -> Continue autonomous mission -> Failsafe RTL if no recovery.<br>
+    Geofence breach -> Automatic RTL or FTS parachute.
+  </div>
+  <div class="manual-entry" style="border-left-color:#ef4444;">
+    <b>GNSS Jam -> EKF3 -> Navigation Drift</b><br>
+    RTK fix lost / GNSS jammed -> EKF3 switches to dead reckoning.<br>
+    Position error grows ~1-3 m/s -> Geofence accuracy degrades.
+  </div>
+  <div class="manual-entry" style="border-left-color:#a855f7;">
+    <b>Power Bus -> All Electrical Loads</b><br>
+    Main battery fault -> BMS disconnect -> Backup battery -> FC survival.<br>
+    Bus isolation -> Motor transients blocked from payload.
+  </div>
+  <div class="manual-entry" style="border-left-color:#3b82f6;">
+    <b>Mission Phase -> Payload -> Data Rate</b><br>
+    Cruise survey phase -> LiDAR + RGB + thermal streaming -> High data rate to companion.<br>
+    BLOS / no link -> Store onboard NVMe -> Offload after landing.
+  </div>
+</div>
+
+<div class="overlay ctrl-panel" id="ctrlPanel">
+  <div class="panel-section">
+    <div class="panel-label">Pilot Inputs</div>
+    <div class="slider-row">
+      <label><span>Throttle</span><span id="throttleVal">50%</span></label>
+      <input type="range" min="0" max="100" value="50" id="throttleSlider" oninput="updatePilotInputs()">
+    </div>
+    <div class="slider-row">
+      <label><span>Altitude (m)</span><span id="altVal">100</span></label>
+      <input type="range" min="0" max="4000" value="100" step="10" id="altSlider" oninput="updatePilotInputs()">
+    </div>
+    <div class="slider-row">
+      <label><span>Airspeed (m/s)</span><span id="speedVal">20.0</span></label>
+      <input type="range" min="0" max="35" value="20.0" step="0.1" id="speedSlider" oninput="updatePilotInputs()">
+    </div>
+    <div class="slider-row">
+      <label><span>Sim Speed</span><span id="simSpeedVal">1.0x</span></label>
+      <input type="range" min="0.1" max="10" value="1" step="0.1" id="simSpeedSlider" oninput="updateSimSpeed()">
+    </div>
+    <div class="btn-grid">
+      <button class="btn on" onclick="togglePlay()" id="playBtn">Pause</button>
+      <button class="btn" onclick="resetSim()">Reset</button>
+    </div>
+    <div class="btn-grid">
+      <button class="btn" onclick="takeScreenshot()">Screenshot</button>
+      <button class="btn" onclick="toggleAutoRTL()" id="rtbBtn">Auto-RTL</button>
+    </div>
+  </div>
+
+  <div class="panel-section">
+    <div class="panel-label">Atmosphere (ISA)</div>
+    <div class="telemetry-grid">
+      <div class="tel-item"><div class="tel-label">Temp</div><div class="tel-val ok" id="telTemp">14.4C</div></div>
+      <div class="tel-item"><div class="tel-label">Density</div><div class="tel-val ok" id="telRho">1.225 kg/m3</div></div>
+      <div class="tel-item"><div class="tel-label">Pressure</div><div class="tel-val ok" id="telPres">1013 hPa</div></div>
+      <div class="tel-item"><div class="tel-label">Sigma</div><div class="tel-val ok" id="telSigma">1.000</div></div>
+    </div>
+  </div>
+
+  <div class="panel-section">
+    <div class="panel-label">Propulsion</div>
+    <div class="telemetry-grid">
+      <div class="tel-item"><div class="tel-label">Hover Power</div><div class="tel-val ok" id="telHoverP">4336 W</div></div>
+      <div class="tel-item"><div class="tel-label">Cruise Power</div><div class="tel-val ok" id="telCruiseP">1806 W</div></div>
+      <div class="tel-item"><div class="tel-label">VTOL RPM</div><div class="tel-val ok" id="telVtolRPM">2850</div></div>
+      <div class="tel-item"><div class="tel-label">Pusher RPM</div><div class="tel-val ok" id="telPushRPM">2400</div></div>
+      <div class="tel-item"><div class="tel-label">Hover T/W</div><div class="tel-val ok" id="telTW">1.80</div></div>
+      <div class="tel-item"><div class="tel-label">Total Current</div><div class="tel-val ok" id="telCurr">84 A</div></div>
+    </div>
+  </div>
+
+  <div class="panel-section">
+    <div class="panel-label">Aerodynamics</div>
+    <div class="telemetry-grid">
+      <div class="tel-item"><div class="tel-label">CL</div><div class="tel-val ok" id="telCL">0.42</div></div>
+      <div class="tel-item"><div class="tel-label">CD</div><div class="tel-val ok" id="telCD">0.038</div></div>
+      <div class="tel-item"><div class="tel-label">L/D</div><div class="tel-val ok" id="telLD">11.1</div></div>
+      <div class="tel-item"><div class="tel-label">P_req</div><div class="tel-val ok" id="telPreq">1806 W</div></div>
+      <div class="tel-item"><div class="tel-label">Stall Margin</div><div class="tel-val ok" id="telStall">1.67</div></div>
+      <div class="tel-item"><div class="tel-label">Dyn Press</div><div class="tel-val ok" id="telQ">245 Pa</div></div>
+    </div>
+  </div>
+
+  <div class="panel-section">
+    <div class="panel-label">FCS Surface Commands</div>
+    <div class="fcs-grid">
+      <div class="fcs-row">
+        <div class="fcs-label">AIL</div>
+        <div class="fcs-track"><div class="fcs-zero"></div><div class="fcs-fill ail" id="fcsAilBar"></div></div>
+        <div class="fcs-val" id="fcsAilVal">0 deg</div>
+      </div>
+      <div class="fcs-row">
+        <div class="fcs-label">ELEV</div>
+        <div class="fcs-track"><div class="fcs-zero"></div><div class="fcs-fill elev" id="fcsElevBar"></div></div>
+        <div class="fcs-val" id="fcsElevVal">0 deg</div>
+      </div>
+      <div class="fcs-row">
+        <div class="fcs-label">RUDD</div>
+        <div class="fcs-track"><div class="fcs-zero"></div><div class="fcs-fill rudd" id="fcsRuddBar"></div></div>
+        <div class="fcs-val" id="fcsRuddVal">0 deg</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel-section">
+    <div class="panel-label">Electrical & Comms</div>
+    <div class="telemetry-grid">
+      <div class="tel-item"><div class="tel-label">Bus Voltage</div><div class="tel-val ok" id="telVbus">51.8 V</div></div>
+      <div class="tel-item"><div class="tel-label">Total Load</div><div class="tel-val ok" id="telLoad">2014 W</div></div>
+      <div class="tel-item"><div class="tel-label">Battery SOC</div><div class="tel-val ok" id="telSOC">100%</div></div>
+      <div class="tel-item"><div class="tel-label">Link Margin</div><div class="tel-val ok" id="telMargin">12 dB</div></div>
+    </div>
+  </div>
+
+  <div class="panel-section">
+    <div class="panel-label">Fault Injection</div>
+    <div class="btn-grid">
+      <button class="btn fault" onclick="toggleFault('lostlink')" id="b-lostlink">Lost Link</button>
+      <button class="btn fault" onclick="toggleFault('vtolmotor')" id="b-vtolmotor">VTOL Motor</button>
+      <button class="btn fault" onclick="toggleFault('pusher')" id="b-pusher">Pusher Fail</button>
+      <button class="btn fault" onclick="toggleFault('gnssjam')" id="b-gnssjam">GNSS Jam</button>
+      <button class="btn fault" onclick="toggleFault('geofence')" id="b-geofence">Geofence</button>
+      <button class="btn fault" onclick="toggleFault('battery')" id="b-battery">Batt Fault</button>
+      <button class="btn fault" onclick="toggleFault('overheat')" id="b-overheat">Overheat</button>
+      <button class="btn fault" onclick="toggleFault('payload')" id="b-payload">Payload Fail</button>
+    </div>
+  </div>
+
+  <div class="panel-section">
+    <div class="panel-label">Warnings</div>
+    <div id="warningList" style="font-size:11px; color:#94a3b8; line-height:1.6;">
+      <span style="color:#10b981;">*</span> All systems nominal
+    </div>
+  </div>
+</div>
+
+<div class="info-card" id="infoCard">
+  <h3 id="icTitle">Component</h3>
+  <div class="sub" id="icSub">Subsystem</div>
+  <div id="icBody"></div>
+</div>
+
+<div class="overlay timeline-bar" id="timelineBar">
+  <div class="timeline-header">
+    <span class="timeline-title">Mission Timeline - 120 min Endurance</span>
+    <span class="timeline-phase" id="timelinePhase">PREFLIGHT</span>
+    <span class="timeline-time" id="timelineTime">00:00 / 02:00</span>
+  </div>
+  <div class="timeline-track-wrap">
+    <div class="timeline-track">
+      <div class="timeline-segments" id="timelineSegments"></div>
+      <div class="timeline-progress" id="timelineProgress"></div>
+    </div>
+    <div class="timeline-thumb" id="timelineThumb"></div>
+    <input type="range" min="0" max="2.0" step="0.01" value="0" id="timelineSlider" oninput="onTimelineScrub(event)">
+  </div>
+  <div class="phase-labels" id="phaseLabels"></div>
+</div>
+
+<div class="overlay status-bar">
+  <div class="status-item"><div class="slabel">Phase</div><div class="sval" id="sPhase" style="color:#3b82f6;">PREFLIGHT</div></div>
+  <div class="status-item" style="position:relative;"><div class="slabel">Battery</div><div class="sval" id="sBatt" style="color:#a855f7;">5.70 kWh</div><div class="battery-mini-bar"><div class="battery-mini-fill" id="battMiniFill"></div></div></div>
+  <div class="status-item"><div class="slabel">Time</div><div class="sval" id="sTime">00:00:00</div></div>
+  <div class="status-item"><div class="slabel">Safety</div><div class="sval" id="sSafe" style="color:#10b981;">NORMAL</div></div>
+  <div class="status-item"><div class="slabel">Range</div><div class="sval" id="sRange">0 km</div></div>
+  <div class="status-item"><div class="slabel">Packets</div><div class="sval" id="sPkt">0</div></div>
+</div>
+
+<div class="pkt-tooltip" id="pktTooltip">
+  <div class="pkt-label">Packet</div>
+  <div class="pkt-val" id="pktText">--</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+<script>
+
+const ISA = {
+  T0: 288.15, p0: 101325, rho0: 1.225, L: 0.0065, g: 9.80665, R: 287.05,
+  getT(h){return this.T0-this.L*h;},
+  getP(h){return this.p0*Math.pow(1-this.L*h/this.T0,5.2561);},
+  getRho(h){return this.rho0*Math.pow(1-this.L*h/this.T0,4.2561);},
+  getSigma(h){return this.getRho(h)/this.rho0;}
+};
+
+const AIRCRAFT = {
+  MTOW:30, S:0.80, AR:9.8, b:2.8, CD0:0.095, e:0.82, eta_p:0.72,
+  hover_power:4336, cruise_power:1806, hover_TW:1.8,
+  V_stall:12, V_transition_min:15, V_transition_max:17, V_cruise:20, V_max:30,
+  battery_total_kwh:5.70, battery_reserve_kwh:1.14,
+  vtol_motor_count:4, prop_dia_vtol:0.559, prop_dia_cruise:0.457
+};
+
+const MISSION_PHASES = [
+  { name: "PREFLIGHT",      start: 0.00, end: 0.05, color: "#64748b", alt: 0,    speed: 0,    throttle: 0.00, mode: "GROUND", desc: "Ground checks and payload install" },
+  { name: "VTOL TAKEOFF",   start: 0.05, end: 0.15, color: "#3b82f6", alt: 50,   speed: 0,    throttle: 0.75, mode: "VTOL",   desc: "Vertical climb to 50m AGL" },
+  { name: "TRANSITION FW",  start: 0.15, end: 0.25, color: "#06b6d4", alt: 80,   speed: 16,   throttle: 0.60, mode: "TRANS",  desc: "VTOL to Fixed-wing transition" },
+  { name: "CRUISE SURVEY",  start: 0.25, end: 1.75, color: "#10b981", alt: 100,  speed: 20,   throttle: 0.45, mode: "CRUISE", desc: "Autonomous grid survey at 100m" },
+  { name: "ON STATION",     start: 1.75, end: 1.85, color: "#a855f7", alt: 100,  speed: 18,   throttle: 0.40, mode: "LOITER", desc: "Loiter and dynamic re-task" },
+  { name: "BACK TRANS",     start: 1.85, end: 1.95, color: "#f59e0b", alt: 50,   speed: 14,   throttle: 0.55, mode: "TRANS",  desc: "Fixed-wing to VTOL back-transition" },
+  { name: "VTOL LANDING",   start: 1.95, end: 2.00, color: "#ef4444", alt: 0,    speed: 0,    throttle: 0.35, mode: "VTOL",   desc: "Precision VTOL landing" }
+];
+
+let state = {
+  throttle:0.50, altitude:100, airspeed:20.0, simSpeed:1.0, isPlaying:true,
+  phase:"PREFLIGHT", battery_kwh:5.70, time:0, range:0,
+  vtolMotorsOn:false, pusherOn:false, inTransition:false, autoRTL:false,
+  faults:{lostlink:false,vtolmotor:false,pusher:false,gnssjam:false,geofence:false,battery:false,overheat:false,payload:false},
+  warnings:[]
+};
+
+const fcs = { aileron:0, elevator:0, rudder:0, maxAil:15, maxElev:20, maxRudd:15 };
+const controlSurfaces = {};
+let vtolPropGroups = [], pusherPropGroup = null, pusherDisc = null;
+let lastPhys = null;
+let openCompId = null;
+let wingL, wingR, hStab, vStab;
+
+function getMissionPhase(hours) {
+  for (const ph of MISSION_PHASES) { if (hours >= ph.start && hours < ph.end) return ph; }
+  return MISSION_PHASES[MISSION_PHASES.length - 1];
+}
+
+function computePhysics(){
+  const h=state.altitude, sigma=ISA.getSigma(h), rho=ISA.getRho(h), T=ISA.getT(h)-273.15, p=ISA.getP(h)/100;
+  const isVTOL = state.phase === "VTOL TAKEOFF" || state.phase === "VTOL LANDING" || state.phase === "PREFLIGHT";
+  const isCruise = state.phase === "CRUISE SURVEY" || state.phase === "ON STATION";
+  const isTrans = state.phase === "TRANSITION FW" || state.phase === "BACK TRANS";
+
+  let P_prop = 0;
+  if (isVTOL) {
+    P_prop = AIRCRAFT.hover_power * state.throttle;
+    if (state.faults.vtolmotor) P_prop *= 0.75;
+  } else if (isCruise) {
+    P_prop = AIRCRAFT.cruise_power * (state.throttle / 0.45);
+    if (state.faults.pusher) P_prop = 0;
+  } else if (isTrans) {
+    P_prop = AIRCRAFT.hover_power * 0.4 + AIRCRAFT.cruise_power * 0.6 * state.throttle;
+  }
+
+  const q=0.5*rho*state.airspeed*state.airspeed;
+  const CL=(q>1)?(AIRCRAFT.MTOW*9.80665)/(q*AIRCRAFT.S):0;
+  const CD=AIRCRAFT.CD0+(CL*CL)/(Math.PI*AIRCRAFT.e*AIRCRAFT.AR);
+  const LD=(CD>0.001)?CL/CD:0;
+  const D=(q>1)?q*AIRCRAFT.S*CD:0;
+  const P_req=(state.airspeed>1)?D*state.airspeed/AIRCRAFT.eta_p/1000:0;
+  const V_stall=Math.sqrt(2*AIRCRAFT.MTOW*9.80665/(rho*AIRCRAFT.S*1.3));
+  const stallMargin=(V_stall>0)?state.airspeed/V_stall:99;
+
+  let vtolRPM = isVTOL ? 1200 + state.throttle * 1800 : (isTrans ? 800 : 0);
+  if (state.faults.vtolmotor) vtolRPM *= 0.8;
+  let pushRPM = (isCruise || isTrans) ? 800 + state.throttle * 2000 : 0;
+  if (state.faults.pusher) pushRPM = 0;
+
+  const avionicsLoad = 155;
+  const payloadLoad = (state.faults.payload) ? 0 : 85;
+  const totalLoad = P_prop + avionicsLoad + payloadLoad;
+  const current = totalLoad / 51.8;
+
+  let battV = 51.8;
+  if (state.faults.battery) battV = 42.0 + (state.battery_kwh / AIRCRAFT.battery_total_kwh) * 9.8;
+
+  const margin = 12 - (state.range / 100) * 8 + (state.faults.lostlink ? -20 : 0);
+
+  const warnings=[];
+  if(stallMargin<1.2 && !isVTOL) warnings.push({level:"warn",text:"STALL MARGIN LOW"});
+  if(stallMargin<1.05 && !isVTOL) warnings.push({level:"crit",text:"STALL WARNING"});
+  if(state.battery_kwh<AIRCRAFT.battery_reserve_kwh+0.5) warnings.push({level:"crit",text:"BATTERY CRITICAL - RTL NOW"});
+  else if(state.battery_kwh<AIRCRAFT.battery_reserve_kwh+1.0) warnings.push({level:"warn",text:"BATTERY LOW - Return soon"});
+  if(margin<-5) warnings.push({level:"warn",text:"LINK MARGINAL"});
+  if(margin<-15) warnings.push({level:"crit",text:"LINK LOST"});
+  if(state.faults.lostlink) warnings.push({level:"warn",text:"LOST LINK: Failsafe active"});
+  if(state.faults.gnssjam) warnings.push({level:"warn",text:"GNSS JAM: Dead reckoning only"});
+  if(state.faults.vtolmotor) warnings.push({level:"warn",text:"VTOL MOTOR DEGRADED"});
+  if(state.faults.pusher && isCruise) warnings.push({level:"crit",text:"PUSHER FAIL: Back-transition required"});
+  if(state.faults.geofence) warnings.push({level:"warn",text:"GEOFENCE BREACH: Turning back"});
+  if(state.faults.battery) warnings.push({level:"crit",text:"BATTERY FAULT: Check BMS"});
+  if(state.faults.overheat) warnings.push({level:"warn",text:"OVERHEAT: Reduce throttle"});
+  if(state.faults.payload) warnings.push({level:"warn",text:"PAYLOAD OFFLINE"});
+  state.warnings=warnings;
+
+  return{T,rho,p,sigma,P_prop,CL,CD,LD,P_req,stallMargin,vtolRPM,pushRPM,totalLoad,current,battV,margin};
+}
+
+function updateUI(phys){
+  document.getElementById("telTemp").textContent=phys.T.toFixed(1)+"C";
+  document.getElementById("telRho").textContent=phys.rho.toFixed(3)+" kg/m3";
+  document.getElementById("telPres").textContent=phys.p.toFixed(0)+" hPa";
+  document.getElementById("telSigma").textContent=phys.sigma.toFixed(3);
+  document.getElementById("telHoverP").textContent=Math.round(phys.P_prop)+" W";
+  setStatus("telHoverP",phys.P_prop>5000?"warn":"ok");
+  document.getElementById("telCruiseP").textContent=Math.round(AIRCRAFT.cruise_power)+" W";
+  document.getElementById("telVtolRPM").textContent=Math.round(phys.vtolRPM);
+  setStatus("telVtolRPM",phys.vtolRPM>3000?"warn":"ok");
+  document.getElementById("telPushRPM").textContent=Math.round(phys.pushRPM);
+  setStatus("telPushRPM",phys.pushRPM>2800?"warn":"ok");
+  const tw = (phys.P_prop > 100 && (state.phase.includes("VTOL") || state.phase.includes("TRANS"))) ? (phys.P_prop / AIRCRAFT.hover_power * AIRCRAFT.hover_TW).toFixed(2) : AIRCRAFT.hover_TW.toFixed(2);
+  document.getElementById("telTW").textContent=tw;
+  document.getElementById("telCurr").textContent=Math.round(phys.current)+" A";
+  document.getElementById("telCL").textContent=(phys.CL||0).toFixed(3);
+  document.getElementById("telCD").textContent=(phys.CD||0).toFixed(4);
+  document.getElementById("telLD").textContent=(phys.LD||0).toFixed(1);
+  document.getElementById("telPreq").textContent=(phys.P_req||0).toFixed(1)+" W";
+  document.getElementById("telStall").textContent=(phys.stallMargin||0).toFixed(2);
+  setStatus("telStall",phys.stallMargin<1.05?"crit":phys.stallMargin<1.2?"warn":"ok");
+  document.getElementById("telQ").textContent=Math.round(0.5*phys.rho*state.airspeed*state.airspeed)+" Pa";
+  document.getElementById("telVbus").textContent=phys.battV.toFixed(1)+" V";
+  setStatus("telVbus",phys.battV<45?"crit":phys.battV<48?"warn":"ok");
+  document.getElementById("telLoad").textContent=Math.round(phys.totalLoad)+" W";
+  const soc = (state.battery_kwh / AIRCRAFT.battery_total_kwh * 100);
+  document.getElementById("telSOC").textContent=soc.toFixed(0)+"%";
+  setStatus("telSOC",soc<15?"crit":soc<30?"warn":"ok");
+  document.getElementById("telMargin").textContent=phys.margin.toFixed(1)+" dB";
+  setStatus("telMargin",phys.margin<-10?"crit":phys.margin<-3?"warn":"ok");
+  document.getElementById("sBatt").textContent=state.battery_kwh.toFixed(2)+" kWh";
+  document.getElementById("sTime").textContent=fmtTime(state.time);
+  document.getElementById("sRange").textContent=state.range.toFixed(1)+" km";
+  const battPct = (state.battery_kwh / AIRCRAFT.battery_total_kwh) * 100;
+  document.getElementById("battMiniFill").style.width = Math.max(0, battPct) + "%";
+  const wl=document.getElementById("warningList");
+  if(state.warnings.length===0){wl.innerHTML="<span style=\"color:#10b981;\">*</span> All systems nominal";}
+  else{wl.innerHTML=state.warnings.map(w=>`<div style="color:${w.level==="crit"?"#ef4444":"#f59e0b"};margin-bottom:3px;">${w.level==="crit"?"ALERT":"WARN"} ${w.text}</div>`).join("");}
+  const anyFault=Object.values(state.faults).some(v=>v);
+  const sSafe=document.getElementById("sSafe");
+  sSafe.textContent=anyFault?"ALERT":"NORMAL"; sSafe.style.color=anyFault?"#ef4444":"#10b981";
+}
+
+function setStatus(id,status){document.getElementById(id).className="tel-val "+status;}
+function fmtTime(t){const h=Math.floor(t/3600),m=Math.floor((t%3600)/60),s=Math.floor(t%60);return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");}
+
+function updatePilotInputs(){
+  state.throttle=document.getElementById("throttleSlider").value/100;
+  state.altitude=parseFloat(document.getElementById("altSlider").value);
+  state.airspeed=parseFloat(document.getElementById("speedSlider").value);
+  document.getElementById("throttleVal").textContent=Math.round(state.throttle*100)+"%";
+  document.getElementById("altVal").textContent=Math.round(state.altitude);
+  document.getElementById("speedVal").textContent=state.airspeed.toFixed(1);
+}
+function updateSimSpeed(){state.simSpeed=parseFloat(document.getElementById("simSpeedSlider").value);document.getElementById("simSpeedVal").textContent=state.simSpeed.toFixed(1)+"x";}
+function togglePlay(){state.isPlaying=!state.isPlaying;document.getElementById("playBtn").textContent=state.isPlaying?"Pause":"Play";}
+function resetSim(){state.battery_kwh=AIRCRAFT.battery_total_kwh;state.time=0;state.range=0;state.faults={lostlink:false,vtolmotor:false,pusher:false,gnssjam:false,geofence:false,battery:false,overheat:false,payload:false};document.querySelectorAll(".fault").forEach(b=>b.classList.remove("on"));updatePilotInputs();updateMissionStateFromTime();}
+function toggleFault(f){
+  state.faults[f]=!state.faults[f];
+  document.getElementById("b-"+f).classList.toggle("on",state.faults[f]);
+  const phys=computePhysics();
+  updateUI(phys);
+}
+function toggleManual(){const mp=document.getElementById("manualPanel");mp.style.display=mp.style.display==="none"?"block":"none";document.getElementById("manualBtn").textContent=mp.style.display==="none"?"Show Manual":"Hide Manual";}
+function toggleAutoRTL(){state.autoRTL=!state.autoRTL;document.getElementById("rtbBtn").classList.toggle("on",state.autoRTL);}
+
+function initTimeline() {
+  const segContainer = document.getElementById("timelineSegments");
+  const lblContainer = document.getElementById("phaseLabels");
+  const total = 2.0;
+  MISSION_PHASES.forEach(ph => {
+    const seg = document.createElement("div");
+    seg.className = "timeline-seg";
+    seg.style.width = ((ph.end - ph.start) / total * 100) + "%";
+    seg.style.background = ph.color + "40";
+    seg.style.borderRight = "1px solid " + ph.color + "80";
+    seg.title = ph.name + " (" + fmtTime(ph.start*3600).slice(0,5) + "-" + fmtTime(ph.end*3600).slice(0,5) + "): " + ph.desc;
+    segContainer.appendChild(seg);
+    const lbl = document.createElement("div");
+    lbl.className = "phase-lbl";
+    lbl.textContent = ph.name;
+    lbl.dataset.phase = ph.name;
+    lbl.title = "Jump to " + ph.name;
+    lbl.addEventListener("click", () => {
+      state.time = ph.start * 3600;
+      updateMissionStateFromTime();
+      updateTimelineUI();
+      const phys = computePhysics();
+      updateUI(phys);
+    });
+    lblContainer.appendChild(lbl);
+  });
+}
+
+function updateTimelineUI() {
+  const hours = state.time / 3600;
+  const pct = Math.min(100, (hours / 2.0) * 100);
+  const phase = getMissionPhase(hours);
+  document.getElementById("timelineProgress").style.width = pct + "%";
+  document.getElementById("timelineThumb").style.left = pct + "%";
+  if (!document.getElementById("timelineSlider").matches(":active")) {
+    document.getElementById("timelineSlider").value = hours;
+  }
+  document.getElementById("timelinePhase").textContent = phase.name;
+  document.getElementById("timelinePhase").style.color = phase.color;
+  document.getElementById("timelinePhase").style.background = phase.color + "18";
+  document.getElementById("timelineTime").textContent = fmtTime(state.time).slice(0,5) + " / 02:00";
+  document.getElementById("sPhase").textContent = phase.name;
+  document.getElementById("sPhase").style.color = phase.color;
+  document.querySelectorAll(".phase-lbl").forEach(lbl => {
+    lbl.classList.toggle("active", lbl.dataset.phase === phase.name);
+  });
+}
+
+function onTimelineScrub(e) {
+  const hours = parseFloat(e.target.value);
+  state.time = hours * 3600;
+  updateMissionStateFromTime();
+  updateTimelineUI();
+  const phys = computePhysics();
+  updateUI(phys);
+}
+
+function updateMissionStateFromTime() {
+  const hours = state.time / 3600;
+  const phase = getMissionPhase(hours);
+  state.phase = phase.name;
+  const phaseDur = phase.end - phase.start;
+  const phaseFrac = Math.max(0, Math.min(1, (hours - phase.start) / phaseDur));
+  let targetAlt = phase.alt;
+  let targetSpeed = phase.speed;
+  let targetThrottle = phase.throttle;
+  const phaseIdx = MISSION_PHASES.indexOf(phase);
+  if (phaseIdx < MISSION_PHASES.length - 1) {
+    const next = MISSION_PHASES[phaseIdx + 1];
+    targetAlt = phase.alt + (next.alt - phase.alt) * phaseFrac;
+    targetSpeed = phase.speed + (next.speed - phase.speed) * phaseFrac;
+    targetThrottle = phase.throttle + (next.throttle - phase.throttle) * phaseFrac;
+  }
+  state.altitude = targetAlt;
+  state.airspeed = targetSpeed;
+  state.throttle = targetThrottle;
+  document.getElementById("throttleSlider").value = state.throttle * 100;
+  document.getElementById("altSlider").value = Math.round(targetAlt);
+  document.getElementById("speedSlider").value = state.airspeed;
+  updatePilotInputs();
+  const burned_kwh = (hours / 2.0) * (AIRCRAFT.battery_total_kwh - AIRCRAFT.battery_reserve_kwh);
+  state.battery_kwh = Math.max(AIRCRAFT.battery_reserve_kwh, AIRCRAFT.battery_total_kwh - burned_kwh);
+  const avgGS = 20;
+  state.range = (hours * avgGS);
+}
+
+function createControlSurfaces() {
+  const csMat = new THREE.MeshPhysicalMaterial({
+    color: 0x475569, transparent: true, opacity: 0.35,
+    roughness: 0.35, metalness: 0.7, side: THREE.DoubleSide,
+    emissive: 0x1e293b, emissiveIntensity: 0.15
+  });
+  const ailGeo = new THREE.BoxGeometry(0.18, 0.55, 0.025);
+  const ailL = new THREE.Group();
+  const ailMeshL = new THREE.Mesh(ailGeo, csMat);
+  ailMeshL.position.set(0.09, 0, 0);
+  ailL.add(ailMeshL);
+  ailL.position.set(0.25, -0.95, 0.05);
+  wingL.add(ailL);
+  controlSurfaces.aileronL = ailL;
+  const ailR = new THREE.Group();
+  const ailMeshR = new THREE.Mesh(ailGeo, csMat);
+  ailMeshR.position.set(0.09, 0, 0);
+  ailR.add(ailMeshR);
+  ailR.position.set(0.25, 0.95, 0.05);
+  wingR.add(ailR);
+  controlSurfaces.aileronR = ailR;
+  const elevGeo = new THREE.BoxGeometry(0.14, 0.35, 0.025);
+  const elevL = new THREE.Group();
+  const elevMeshL = new THREE.Mesh(elevGeo, csMat);
+  elevMeshL.position.set(0.07, 0, 0);
+  elevL.add(elevMeshL);
+  elevL.position.set(0.15, -0.28, 0.04);
+  hStab.add(elevL);
+  controlSurfaces.elevatorL = elevL;
+  const elevR = new THREE.Group();
+  const elevMeshR = new THREE.Mesh(elevGeo, csMat);
+  elevMeshR.position.set(0.07, 0, 0);
+  elevR.add(elevMeshR);
+  elevR.position.set(0.15, 0.28, 0.04);
+  hStab.add(elevR);
+  controlSurfaces.elevatorR = elevR;
+  const rudGeo = new THREE.BoxGeometry(0.12, 0.025, 0.30);
+  const rud = new THREE.Group();
+  const rudMesh = new THREE.Mesh(rudGeo, csMat);
+  rudMesh.position.set(0.06, 0, 0);
+  rud.add(rudMesh);
+  rud.position.set(0.12, 0, 0.18);
+  vStab.add(rud);
+  controlSurfaces.rudder = rud;
+}
+
+function updateFCS(dt) {
+  const hours = state.time / 3600;
+  const phase = getMissionPhase(hours);
+  const t = state.time;
+  let targetAil = 0, targetElev = 0, targetRudd = 0;
+  switch(phase.name) {
+    case "PREFLIGHT": case "POSTFLIGHT": targetElev=0; targetAil=0; targetRudd=0; break;
+    case "VTOL TAKEOFF": case "VTOL LANDING":
+      targetElev = 0.05; targetAil = Math.sin(t*0.8)*0.06; targetRudd = Math.sin(t*0.6)*0.04; break;
+    case "TRANSITION FW": targetElev = 0.35; targetAil = Math.sin(t*0.4)*0.08; targetRudd = Math.sin(t*0.3)*0.05; break;
+    case "CRUISE SURVEY":
+      targetElev = 0.02; targetAil = Math.sin(t*0.25)*0.15; targetRudd = Math.sin(t*0.25)*0.08; break;
+    case "ON STATION":
+      const orbitT = ((hours - 1.75) % 0.10) / 0.10;
+      targetAil = 0.6 * Math.sin(orbitT * Math.PI * 2);
+      targetRudd = 0.3 * Math.cos(orbitT * Math.PI * 2);
+      targetElev = 0.12;
+      break;
+    case "BACK TRANS": targetElev = -0.25; targetAil = Math.sin(t*0.5)*0.10; targetRudd = Math.sin(t*0.4)*0.06; break;
+  }
+  const turb = () => (Math.random() - 0.5) * 0.10;
+  targetAil += turb(); targetElev += turb() * 0.5; targetRudd += turb() * 0.4;
+  if (state.faults.pusher && phase.name.includes("CRUISE")) { targetElev = 0.55; targetAil *= 1.5; }
+  if (state.faults.gnssjam) { targetAil += Math.sin(t*3)*0.10; targetRudd += Math.cos(t*2.5)*0.07; }
+  if (state.faults.geofence) { targetAil = 0.7 * Math.sin(t*2); targetRudd = 0.35 * Math.cos(t*2); targetElev = 0.15; }
+  targetAil = Math.max(-1, Math.min(1, targetAil));
+  targetElev = Math.max(-1, Math.min(1, targetElev));
+  targetRudd = Math.max(-1, Math.min(1, targetRudd));
+  const servoRate = 3.5 * dt * state.simSpeed;
+  fcs.aileron += (targetAil - fcs.aileron) * Math.min(1, servoRate);
+  fcs.elevator += (targetElev - fcs.elevator) * Math.min(1, servoRate);
+  fcs.rudder += (targetRudd - fcs.rudder) * Math.min(1, servoRate);
+  const ailDeg = fcs.aileron * fcs.maxAil;
+  const elevDeg = fcs.elevator * fcs.maxElev;
+  const ruddDeg = fcs.rudder * fcs.maxRudd;
+  const ailRad = ailDeg * Math.PI / 180;
+  const elevRad = elevDeg * Math.PI / 180;
+  const ruddRad = ruddDeg * Math.PI / 180;
+  if (controlSurfaces.aileronL) controlSurfaces.aileronL.rotation.z = ailRad;
+  if (controlSurfaces.aileronR) controlSurfaces.aileronR.rotation.z = -ailRad;
+  if (controlSurfaces.elevatorL) controlSurfaces.elevatorL.rotation.z = -elevRad;
+  if (controlSurfaces.elevatorR) controlSurfaces.elevatorR.rotation.z = -elevRad;
+  if (controlSurfaces.rudder) controlSurfaces.rudder.rotation.y = ruddRad;
+  const setBar = (id, val, max) => {
+    const bar = document.getElementById(id);
+    const pct = Math.abs(val / max) * 50;
+    bar.style.width = pct + "%";
+    bar.style.left = (val < 0 ? 50 - pct : 50) + "%";
+  };
+  setBar("fcsAilBar", ailDeg, fcs.maxAil);
+  setBar("fcsElevBar", elevDeg, fcs.maxElev);
+  setBar("fcsRuddBar", ruddDeg, fcs.maxRudd);
+  document.getElementById("fcsAilVal").textContent = (ailDeg >= 0 ? "+" : "") + ailDeg.toFixed(1) + " deg";
+  document.getElementById("fcsElevVal").textContent = (elevDeg >= 0 ? "+" : "") + elevDeg.toFixed(1) + " deg";
+  document.getElementById("fcsRuddVal").textContent = (ruddDeg >= 0 ? "+" : "") + ruddDeg.toFixed(1) + " deg";
+}
+
+function updatePropellers(dt) {
+  if (!lastPhys) return;
+  const vtolRPS = lastPhys.vtolRPM / 60;
+  const pushRPS = lastPhys.pushRPM / 60;
+  vtolPropGroups.forEach((g, i) => {
+    if (!g) return;
+    g.rotation.y += vtolRPS * 2 * Math.PI * dt * state.simSpeed * (1 + (i%2)*0.02);
+  });
+  if (pusherPropGroup) {
+    pusherPropGroup.rotation.x += pushRPS * 2 * Math.PI * dt * state.simSpeed;
+  }
+  if (pusherDisc) {
+    pusherDisc.rotation.x += pushRPS * 2 * Math.PI * dt * state.simSpeed;
+    if (lastPhys.pushRPM > 1500) {
+      pusherPropGroup.visible = false;
+      pusherDisc.visible = true;
+      pusherDisc.material.opacity = Math.min(0.3, 0.05 + (lastPhys.pushRPM - 1500) / 1500 * 0.25);
+    } else {
+      pusherPropGroup.visible = true;
+      pusherDisc.visible = false;
+    }
+  }
+}
+
+function updateAtmosphere() {
+  const alt_m = state.altitude;
+  const t = Math.min(1, alt_m / 4000);
+  const r = 0.02 + t * 0.0; const g = 0.04 + t * 0.0; const b = 0.08 + t * 0.0;
+  scene.background.setRGB(r, g, b);
+  scene.fog.density = 0.022 + t * 0.01;
+  if (skyDome) {
+    const groundR = 0.04, groundG = 0.10, groundB = 0.20;
+    const spaceR = 0.01, spaceG = 0.01, spaceB = 0.02;
+    skyDome.material.color.setRGB(groundR + t*(spaceR-groundR), groundG + t*(spaceG-groundG), groundB + t*(spaceB-groundB));
+  }
+}
+
+function updateInfoCardLive(phys) {
+  if (!openCompId || document.getElementById("infoCard").style.display === "none") return;
+  const cardBody = document.getElementById("icBody");
+  if (openCompId === "battery") {
+    cardBody.innerHTML = `<div class="info-row"><span>SOC</span><span style="color:${state.battery_kwh<AIRCRAFT.battery_reserve_kwh+0.5?'#ef4444':'#e2e8f0'}">${(state.battery_kwh/AIRCRAFT.battery_total_kwh*100).toFixed(0)}%</span></div>` +
+      `<div class="info-row"><span>VBUS</span><span>${phys.battV.toFixed(1)} V</span></div>` +
+      `<div class="info-row"><span>LOAD</span><span>${Math.round(phys.totalLoad)} W</span></div>` +
+      `<div class="info-row"><span>STATUS</span><span style="color:${state.faults.battery?'#ef4444':'#10b981'}">${state.faults.battery?'FAULT':'NOMINAL'}</span></div>`;
+  } else if (openCompId === "fc") {
+    cardBody.innerHTML = `<div class="info-row"><span>FIRMWARE</span><span>ArduPilot QuadPlane</span></div>` +
+      `<div class="info-row"><span>EKF3</span><span>15-state fusion</span></div>` +
+      `<div class="info-row"><span>RTK</span><span>&lt;5cm horizontal</span></div>` +
+      `<div class="info-row"><span>STATUS</span><span style="color:#10b981">NOMINAL</span></div>`;
+  } else if (openCompId === "engine") {
+    cardBody.innerHTML = `<div class="info-row"><span>TYPE</span><span>Pusher outrunner</span></div>` +
+      `<div class="info-row"><span>RPM</span><span>${Math.round(phys.pushRPM)}</span></div>` +
+      `<div class="info-row"><span>POWER</span><span>${Math.round(phys.P_prop)} W</span></div>` +
+      `<div class="info-row"><span>STATUS</span><span style="color:${state.faults.pusher?'#ef4444':'#10b981'}">${state.faults.pusher?'FAULT':'NOMINAL'}</span></div>`;
+  }
+}
+
+function autoRTLLogic(dt) {
+  if (!state.autoRTL) return;
+  const hours = state.time / 3600;
+  if (state.faults.lostlink) state.lostLinkTimer = (state.lostLinkTimer||0) + dt * state.simSpeed;
+  const critical = state.battery_kwh < AIRCRAFT.battery_reserve_kwh + 0.8 || (state.lostLinkTimer||0) > 300;
+  if (critical && hours < 1.85) {
+    const rtbPhase = MISSION_PHASES.find(p => p.name === "BACK TRANS");
+    if (rtbPhase) {
+      state.time = Math.max(state.time, rtbPhase.start * 3600);
+      updateMissionStateFromTime();
+    }
+  }
+}
+
+const container=document.getElementById("canvas-container");
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x020408);scene.fog=new THREE.FogExp2(0x020408,0.022);
+const camera=new THREE.PerspectiveCamera(38,innerWidth/innerHeight,0.1,100);camera.position.set(3.5,5,3.5);
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.localClippingEnabled=true;container.appendChild(renderer.domElement);
+const controls=new THREE.OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.dampingFactor=0.05;controls.target.set(0,0,0);controls.maxPolarAngle=Math.PI/1.3;controls.minDistance=2;controls.maxDistance=18;
+
+controls.enableZoom = false;
+renderer.domElement.addEventListener("wheel", (e) => {
+  e.preventDefault();
+  const scale = e.deltaY > 0 ? 1.08 : 0.92;
+  const offset = new THREE.Vector3().subVectors(camera.position, controls.target);
+  offset.multiplyScalar(scale);
+  camera.position.copy(controls.target).add(offset);
+}, { passive: false });
+
+scene.add(new THREE.AmbientLight(0x2a3a55,2.5));const dl=new THREE.DirectionalLight(0xffffff,1.0);dl.position.set(4,10,6);scene.add(dl);const pl=new THREE.PointLight(0x3b82f6,0.4,20);pl.position.set(2,4,2);scene.add(pl);
+
+const gridHelper = new THREE.GridHelper(20, 20, 0x1e293b, 0x0f172a);
+gridHelper.position.set(0, -1.5, 0);
+scene.add(gridHelper);
+
+const skyDomeGeo = new THREE.SphereGeometry(30, 32, 32);
+const skyDomeMat = new THREE.MeshBasicMaterial({ color: 0x0a1a2a, side: THREE.BackSide, transparent: true, opacity: 0.6 });
+const skyDome = new THREE.Mesh(skyDomeGeo, skyDomeMat);
+scene.add(skyDome);
+
+const C={flight:"#ef4444",mission:"#3b82f6",link:"#10b981",power:"#a855f7",safety:"#f59e0b",payload:"#f97316"};
+const compMat=(c)=>new THREE.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:0.35,roughness:0.2,metalness:0.6});
+const wireMat=(c)=>new THREE.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:1.2,roughness:0.1,metalness:0.9,transparent:true,opacity:0.85});
+const fuseMat=new THREE.MeshPhysicalMaterial({color:0x475569,transparent:true,opacity:0.14,roughness:0.3,metalness:0.75,side:THREE.DoubleSide,clippingPlanes:[new THREE.Plane(new THREE.Vector3(0,0,1),-0.35)]});
+const wingMat=new THREE.MeshPhysicalMaterial({color:0x334155,transparent:true,opacity:0.16,roughness:0.4,metalness:0.65,side:THREE.DoubleSide});
+const boomMat=new THREE.MeshPhysicalMaterial({color:0x334155,transparent:true,opacity:0.18,roughness:0.35,metalness:0.7,side:THREE.DoubleSide});
+
+const airframe=new THREE.Group();
+
+// Fuselage - central body
+const nose=new THREE.Mesh(new THREE.SphereGeometry(0.14,32,16,0,Math.PI*2,0,Math.PI/2),fuseMat);
+nose.rotation.z=-Math.PI/2;nose.position.set(0.14,0,0.14);airframe.add(nose);
+const body=new THREE.Mesh(new THREE.CylinderGeometry(0.14,0.14,1.6,32),fuseMat);
+body.rotation.z=Math.PI/2;body.position.set(0.95,0,0.14);airframe.add(body);
+const tailCone=new THREE.Mesh(new THREE.CylinderGeometry(0.14,0.06,0.4,32),fuseMat);
+tailCone.rotation.z=Math.PI/2;tailCone.position.set(1.95,0,0.14);airframe.add(tailCone);
+
+// Main wing - 2.8m span (scaled to ~1.4 units each side)
+const wGeo=new THREE.BoxGeometry(0.55,1.4,0.025);
+wingL=new THREE.Mesh(wGeo,wingMat);wingL.position.set(0.85,-0.7,0.16);wingL.rotation.x=Math.PI/2;airframe.add(wingL);
+wingR=new THREE.Mesh(wGeo,wingMat);wingR.position.set(0.85,0.7,0.16);wingR.rotation.x=Math.PI/2;airframe.add(wingR);
+
+// Twin booms
+const boomGeo=new THREE.CylinderGeometry(0.025,0.025,0.9,16);
+const boomL=new THREE.Mesh(boomGeo,boomMat);boomL.position.set(1.5,-0.35,0.25);boomL.rotation.x=Math.PI/2;airframe.add(boomL);
+const boomR=new THREE.Mesh(boomGeo,boomMat);boomR.position.set(1.5,0.35,0.25);boomR.rotation.x=Math.PI/2;airframe.add(boomR);
+
+// H-stab (horizontal stabilizer connecting booms)
+const hStabGeo=new THREE.BoxGeometry(0.22,0.72,0.02);
+hStab=new THREE.Mesh(hStabGeo,wingMat);hStab.position.set(1.5,0,0.55);hStab.rotation.x=Math.PI/2;airframe.add(hStab);
+
+// V-stabs on booms
+const vStabGeo=new THREE.BoxGeometry(0.18,0.02,0.22);
+vStab=new THREE.Mesh(vStabGeo,wingMat);vStab.position.set(1.5,0,0.35);airframe.add(vStab);
+const vStabL=new THREE.Mesh(vStabGeo,wingMat);vStabL.position.set(1.5,-0.35,0.35);airframe.add(vStabL);
+const vStabR=new THREE.Mesh(vStabGeo,wingMat);vStabR.position.set(1.5,0.35,0.35);airframe.add(vStabR);
+
+// VTOL arms - 4 arms
+const armMat = new THREE.MeshPhysicalMaterial({color:0x475569,transparent:true,opacity:0.25,roughness:0.3,metalness:0.7,side:THREE.DoubleSide});
+const armGeo = new THREE.CylinderGeometry(0.018,0.018,0.35,12);
+const armPositions = [
+  {x:0.7,y:-0.35,z:0.16,rotZ:0},
+  {x:0.7,y:0.35,z:0.16,rotZ:0},
+  {x:1.1,y:-0.35,z:0.16,rotZ:0},
+  {x:1.1,y:0.35,z:0.16,rotZ:0}
+];
+armPositions.forEach((pos,i)=>{
+  const arm=new THREE.Mesh(armGeo,armMat);
+  arm.position.set(pos.x,pos.y,pos.z);arm.rotation.x=Math.PI/2;
+  airframe.add(arm);
+  // Motor mount
+  const mount=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.04,16),new THREE.MeshStandardMaterial({color:0x334155,metalness:0.8,roughness:0.2}));
+  mount.position.set(pos.x,pos.y,pos.z+0.18);mount.rotation.x=Math.PI/2;
+  airframe.add(mount);
+  // Propeller group
+  const propG=new THREE.Group();
+  const bladeGeo=new THREE.BoxGeometry(0.008,0.28,0.02);
+  const bladeMat=new THREE.MeshStandardMaterial({color:0x475569,metalness:0.75,roughness:0.25});
+  const b1=new THREE.Mesh(bladeGeo,bladeMat);
+  const b2=new THREE.Mesh(bladeGeo,bladeMat);b2.rotation.y=Math.PI/2;
+  propG.add(b1);propG.add(b2);
+  propG.position.set(pos.x,pos.y,pos.z+0.20);
+  airframe.add(propG);
+  vtolPropGroups.push(propG);
+});
+
+// Pusher motor on tail
+const pusherMount=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,0.06,16),new THREE.MeshStandardMaterial({color:0x334155,metalness:0.8,roughness:0.2}));
+pusherMount.position.set(1.95,0,0.14);pusherMount.rotation.z=Math.PI/2;airframe.add(pusherMount);
+
+pusherPropGroup=new THREE.Group();
+const pBladeGeo=new THREE.BoxGeometry(0.008,0.22,0.018);
+const pBladeMat=new THREE.MeshStandardMaterial({color:0x475569,metalness:0.75,roughness:0.25});
+const pb1=new THREE.Mesh(pBladeGeo,pBladeMat);
+const pb2=new THREE.Mesh(pBladeGeo,pBladeMat);pb2.rotation.x=Math.PI/2;
+pusherPropGroup.add(pb1);pusherPropGroup.add(pb2);
+pusherPropGroup.position.set(2.05,0,0.14);pusherPropGroup.rotation.z=Math.PI/2;
+airframe.add(pusherPropGroup);
+
+const discGeo=new THREE.CylinderGeometry(0.22,0.22,0.004,32);
+const discMat=new THREE.MeshStandardMaterial({color:0x475569,transparent:true,opacity:0.12,metalness:0.5,roughness:0.3});
+pusherDisc=new THREE.Mesh(discGeo,discMat);
+pusherDisc.rotation.z=Math.PI/2;pusherDisc.position.set(2.05,0,0.14);
+pusherDisc.visible=false;airframe.add(pusherDisc);
+
+// Landing gear legs
+const gearMat=new THREE.MeshStandardMaterial({color:0x64748b,metalness:0.8,roughness:0.3});
+const gearGeo=new THREE.CylinderGeometry(0.012,0.012,0.25,8);
+const gearPositions=[{x:0.5,y:-0.15,z:-0.05},{x:0.5,y:0.15,z:-0.05},{x:1.3,y:-0.15,z:-0.05},{x:1.3,y:0.15,z:-0.05}];
+gearPositions.forEach(pos=>{
+  const leg=new THREE.Mesh(gearGeo,gearMat);
+  leg.position.set(pos.x,pos.y,pos.z);leg.rotation.x=Math.PI/6;
+  airframe.add(leg);
+  const foot=new THREE.Mesh(new THREE.SphereGeometry(0.02,8,8),gearMat);
+  foot.position.set(pos.x,pos.y-0.1,pos.z-0.05);airframe.add(foot);
+});
+
+scene.add(airframe);
+createControlSurfaces();
+
+const comps=[],compGrp=new THREE.Group();
+const compById = {};
+function addComp(id,label,sub,pos,color,size,details,layer="mid"){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(...size),compMat(color));
+  m.position.set(...pos);m.userData={id,label,sub,color,details,layer,baseColor:color};
+  compGrp.add(m);comps.push(m);compById[id]=m;
+  const ringGeo=new THREE.RingGeometry(Math.max(size[0],size[1])*0.6,Math.max(size[0],size[1])*0.7,32);
+  const ringMat=new THREE.MeshBasicMaterial({color:0xef4444,transparent:true,opacity:0,side:THREE.DoubleSide});
+  const ring=new THREE.Mesh(ringGeo,ringMat);ring.position.set(pos[0],pos[1],pos[2]+0.01);ring.userData={parentId:id};compGrp.add(ring);m.userData.warningRing=ring;
+  const cvs=document.createElement("canvas");cvs.width=260;cvs.height=68;
+  const ctx=cvs.getContext("2d");ctx.fillStyle="rgba(15,23,42,0.88)";ctx.fillRect(0,0,260,68);
+  ctx.strokeStyle=color;ctx.lineWidth=2;ctx.strokeRect(0,0,260,68);
+  ctx.fillStyle="#e2e8f0";ctx.font="bold 20px Arial";ctx.textAlign="center";ctx.fillText(label,130,28);
+  ctx.fillStyle="#94a3b8";ctx.font="12px Arial";ctx.fillText(sub,130,52);
+  const tex=new THREE.CanvasTexture(cvs);
+  const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true}));
+  spr.position.set(pos[0],pos[1],pos[2]+size[2]/2+0.18);spr.scale.set(1.3,0.34,1);compGrp.add(spr);
+  return m;
+}
+
+// COMPONENTS - positioned around the aircraft
+addComp("fc","Pixhawk FC","ArduPilot QuadPlane",[-0.1,0,0.38],C.flight,[0.12,0.08,0.06],{firmware:"ArduPilot QuadPlane",ekf:"15-state",redundancy:"Dual IMU"},"avionics");
+addComp("imu","IMU","Dual MEMS",[-0.05,-0.12,0.32],C.flight,[0.08,0.06,0.05],{redundancy:"Dissimilar vote",grade:"MEMS"},"avionics");
+addComp("gnss","RTK GNSS","GPS/GLONASS",[0.05,0.12,0.42],C.flight,[0.08,0.08,0.04],{accuracy:"<5cm horizontal",integrity:"RTK fix"},"avionics");
+addComp("mag","Magnetometer","Heading ref",[0.1,-0.08,0.28],C.flight,[0.06,0.04,0.04],{placement:"EM clear from motors"},"avionics");
+addComp("baro","Barometer","Alt ref",[0.15,0.08,0.30],C.flight,[0.05,0.05,0.03],{function:"Altitude rate"},"avionics");
+addComp("airspeed","Pitot-Static","Airspeed",[0.25,0,0.48],C.flight,[0.06,0.03,0.03],{heating:"Anti-ice",outputs:"TAS, IAS"},"nose");
+addComp("obstacle","Obstacle Sens","Lidar/Rangefinder",[0.35,0,0.35],C.flight,[0.06,0.06,0.04],{forward:"50m",down:"30m"},"nose");
+addComp("battery","Main Battery","14S 110Ah Li-ion",[0.6,0,0.22],C.power,[0.30,0.14,0.12],{voltage:"51.8V",energy:"5.7kWh",mass:"10.0kg"},"mid");
+addComp("bms","BMS","Cell Balancing",[0.6,0.16,0.22],C.power,[0.08,0.06,0.04],{function:"OVP/OCP/Temp"},"mid");
+addComp("pdb","PDB","Power Distribution",[0.45,0,0.32],C.power,[0.10,0.08,0.04],{rating:"200A",sensing:"Current"},"mid");
+addComp("backup","Backup Batt","4S 2Ah Li-ion",[0.3,0.12,0.28],C.power,[0.06,0.04,0.04],{voltage:"14.8V",function:"FC survival"},"avionics");
+addComp("esc_vtol","VTOL ESCs","4x 60A 14S",[0.75,-0.20,0.30],C.power,[0.14,0.08,0.05],{rating:"60A cont",count:"4"},"mid");
+addComp("esc_push","Cruise ESC","80A 14S",[1.8,0,0.22],C.power,[0.08,0.06,0.04],{rating:"80A cont"},"aft");
+addComp("vtol_m1","VTOL Motor FL","22in prop",[0.7,-0.35,0.38],C.power,[0.05,0.05,0.04],{thrust:"132N max",prop:"22in"},"arm");
+addComp("vtol_m2","VTOL Motor FR","22in prop",[0.7,0.35,0.38],C.power,[0.05,0.05,0.04],{thrust:"132N max",prop:"22in"},"arm");
+addComp("vtol_m3","VTOL Motor RL","22in prop",[1.1,-0.35,0.38],C.power,[0.05,0.05,0.04],{thrust:"132N max",prop:"22in"},"arm");
+addComp("vtol_m4","VTOL Motor RR","22in prop",[1.1,0.35,0.38],C.power,[0.05,0.05,0.04],{thrust:"132N max",prop:"22in"},"arm");
+addComp("engine","Pusher Motor","18in folding",[1.95,0,0.22],C.power,[0.06,0.06,0.06],{power:"~1.8kW cruise",prop:"18in fold"},"aft");
+addComp("companion","Jetson Orin","Companion PC",[0.2,0,0.32],C.mission,[0.10,0.07,0.05],{function:"AI/SLAM/Logging",storage:"1TB NVMe"},"avionics");
+addComp("telemetry","Telemetry Radio","20km LOS",[0.0,0.15,0.42],C.link,[0.07,0.05,0.04],{link:"MAVLink",range:">=20km",latency:"<500ms"},"top");
+addComp("gcs","QGroundControl","Ground Station",[3.5,0,0],C.link,[0.30,0.20,0.15],{sw:"QGroundControl",platform:"Laptop/Tablet"},"ground");
+addComp("payload_bay","Payload Bay","Modular 5kg max",[0.4,0,-0.05],C.payload,[0.22,0.14,0.10],{capacity:"5kg",interface:"Quick-release"},"belly");
+addComp("gimbal","3-Axis Gimbal","Stabilized",[0.4,0,-0.16],C.payload,[0.10,0.10,0.06],{axes:"Pitch/Roll/Yaw",isolation:"Elastomer"},"belly");
+addComp("camera","RGB Camera","42MP APS-C",[0.4,0,-0.24],C.payload,[0.06,0.06,0.05],{gsd:"<5cm @ 100m",shutter:"Global"},"belly");
+addComp("lidar","LiDAR","128-beam",[0.35,0.08,-0.10],C.payload,[0.08,0.06,0.05],{rate:">=300kpts/s",mode:"3D mapping"},"belly");
+addComp("thermal","Thermal Cam","640x512",[0.35,-0.08,-0.10],C.payload,[0.06,0.05,0.04],{type:"Microbolometer",uncooled:"Yes"},"belly");
+addComp("parachute","Parachute","Ballistic recovery",[1.3,0,0.45],C.safety,[0.10,0.08,0.06],{rating:"30-35kg",deploy:">30m AGL"},"top");
+addComp("fts","FTS","Flight Termination",[1.2,0.12,0.38],C.safety,[0.06,0.04,0.04],{function:"Motor cutoff",independent:"Yes"},"top");
+addComp("beacon","Locator","406 MHz",[1.2,-0.12,0.38],C.safety,[0.05,0.04,0.04],{freq:"406 MHz",backup:"Battery"},"top");
+
+scene.add(compGrp);
+
+const wires=[],packets=[];
+function mkWire(a,b,color,type,fromId,toId){
+  const s=new THREE.Vector3(...a),e=new THREE.Vector3(...b);
+  const m=new THREE.Vector3().lerpVectors(s,e,0.5);m.y+=(Math.random()-0.5)*0.15;m.z+=0.08;
+  const curve=new THREE.CatmullRomCurve3([s,m,e]);
+  const tube=new THREE.Mesh(new THREE.TubeGeometry(curve,20,0.008,8,false),wireMat(color));
+  tube.userData={curve,type,color,active:true,id:wires.length,fromId,toId};
+  scene.add(tube);wires.push(tube);
+}
+
+// DATA WIRES
+mkWire([-0.05,-0.12,0.32],[-0.1,0,0.38],C.flight,"flight","imu","fc");
+mkWire([0.05,0.12,0.42],[-0.1,0,0.38],C.flight,"flight","gnss","fc");
+mkWire([0.1,-0.08,0.28],[-0.1,0,0.38],C.flight,"flight","mag","fc");
+mkWire([0.15,0.08,0.30],[-0.1,0,0.38],C.flight,"flight","baro","fc");
+mkWire([0.25,0,0.48],[-0.1,0,0.38],C.flight,"flight","airspeed","fc");
+mkWire([0.35,0,0.35],[-0.1,0,0.38],C.flight,"flight","obstacle","fc");
+mkWire([-0.1,0,0.38],[0.2,0,0.32],C.mission,"mission","fc","companion");
+mkWire([0.2,0,0.32],[0.0,0.15,0.42],C.link,"link","companion","telemetry");
+mkWire([0.0,0.15,0.42],[3.5,0,0],C.link,"link","telemetry","gcs");
+mkWire([3.5,0,0],[0.0,0.15,0.42],C.link,"link","gcs","telemetry");
+mkWire([0.2,0,0.32],[0.4,0,-0.05],C.mission,"mission","companion","payload_bay");
+mkWire([0.4,0,-0.05],[0.4,0,-0.16],C.payload,"payload","payload_bay","gimbal");
+mkWire([0.4,0,-0.16],[0.4,0,-0.24],C.payload,"payload","gimbal","camera");
+mkWire([0.4,0,-0.05],[0.35,0.08,-0.10],C.payload,"payload","payload_bay","lidar");
+mkWire([0.4,0,-0.05],[0.35,-0.08,-0.10],C.payload,"payload","payload_bay","thermal");
+
+// POWER WIRES
+mkWire([0.6,0,0.22],[0.45,0,0.32],C.power,"power","battery","pdb");
+mkWire([0.45,0,0.32],[-0.1,0,0.38],C.power,"power","pdb","fc");
+mkWire([0.45,0,0.32],[0.2,0,0.32],C.power,"power","pdb","companion");
+mkWire([0.45,0,0.32],[0.0,0.15,0.42],C.power,"power","pdb","telemetry");
+mkWire([0.45,0,0.32],[0.4,0,-0.05],C.power,"power","pdb","payload_bay");
+mkWire([0.45,0,0.32],[0.75,-0.20,0.30],C.power,"power","pdb","esc_vtol");
+mkWire([0.75,-0.20,0.30],[0.7,-0.35,0.38],C.power,"power","esc_vtol","vtol_m1");
+mkWire([0.75,-0.20,0.30],[0.7,0.35,0.38],C.power,"power","esc_vtol","vtol_m2");
+mkWire([0.75,-0.20,0.30],[1.1,-0.35,0.38],C.power,"power","esc_vtol","vtol_m3");
+mkWire([0.75,-0.20,0.30],[1.1,0.35,0.38],C.power,"power","esc_vtol","vtol_m4");
+mkWire([0.45,0,0.32],[1.8,0,0.22],C.power,"power","pdb","esc_push");
+mkWire([1.8,0,0.22],[1.95,0,0.22],C.power,"power","esc_push","engine");
+mkWire([0.6,0.16,0.22],[0.6,0,0.22],C.power,"power","bms","battery");
+mkWire([0.3,0.12,0.28],[-0.1,0,0.38],C.power,"power","backup","fc");
+
+// SAFETY WIRES
+mkWire([1.3,0,0.45],[-0.1,0,0.38],C.safety,"safety","parachute","fc");
+mkWire([1.2,0.12,0.38],[-0.1,0,0.38],C.safety,"safety","fts","fc");
+mkWire([1.2,-0.12,0.38],[-0.1,0,0.38],C.safety,"safety","beacon","fc");
+
+const pktGeo=new THREE.SphereGeometry(0.025,12,12);
+function spawn(wire){
+  if(!wire.userData.active)return;
+  const m=new THREE.MeshStandardMaterial({color:wire.userData.color,emissive:wire.userData.color,emissiveIntensity:3,transparent:true,opacity:0.95});
+  const p=new THREE.Mesh(pktGeo,m);p.userData={wire,t:0,speed:0.25+Math.random()*0.15,fromId:wire.userData.fromId,toId:wire.userData.toId,born:performance.now()};scene.add(p);packets.push(p);
+}
+
+const ray=new THREE.Raycaster(),mouse=new THREE.Vector2();
+let hoveredComp = null;
+
+renderer.domElement.addEventListener("mousemove", (e) => {
+  mouse.x = (e.clientX / innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / innerHeight) * 2 + 1;
+  ray.setFromCamera(mouse, camera);
+
+  const pktHits = ray.intersectObjects(packets);
+  const pktTooltip = document.getElementById("pktTooltip");
+  if (pktHits.length > 0) {
+    const pkt = pktHits[0].object.userData;
+    const fromComp = compById[pkt.fromId];
+    const toComp = compById[pkt.toId];
+    const latency = ((performance.now() - pkt.born) / 1000).toFixed(2);
+    document.getElementById("pktText").innerHTML =
+      `<span style="color:#94a3b8">${fromComp ? fromComp.userData.label : pkt.fromId}</span> -> <span style="color:#3b82f6">${toComp ? toComp.userData.label : pkt.toId}</span><br>` +
+      `<span style="color:#64748b">Latency: ${latency}s | Pos: ${(pkt.t*100).toFixed(0)}%</span>`;
+    pktTooltip.style.display = "block";
+    pktTooltip.style.left = (e.clientX + 15) + "px";
+    pktTooltip.style.top = (e.clientY + 15) + "px";
+    renderer.domElement.style.cursor = "crosshair";
+    return;
+  } else {
+    pktTooltip.style.display = "none";
+  }
+
+  const hits = ray.intersectObjects(comps);
+  if (hoveredComp && (!hits.length || hits[0].object !== hoveredComp)) {
+    hoveredComp.material.emissiveIntensity = 0.35;
+    wires.forEach(w => {
+      if (w.userData.fromId === hoveredComp.userData.id || w.userData.toId === hoveredComp.userData.id) {
+        w.material.emissiveIntensity = w.userData.active ? 0.5 + Math.sin(state.time*3+w.userData.id)*0.35 : 0.06;
+      }
+    });
+    hoveredComp = null;
+  }
+  if (hits.length > 0) {
+    const obj = hits[0].object;
+    if (obj !== hoveredComp) {
+      hoveredComp = obj;
+      hoveredComp.material.emissiveIntensity = 1.2;
+      wires.forEach(w => {
+        if ((w.userData.fromId === obj.userData.id || w.userData.toId === obj.userData.id) && w.userData.active) {
+          w.material.emissiveIntensity = 2.5;
+        }
+      });
+    }
+    renderer.domElement.style.cursor = "pointer";
+  } else {
+    renderer.domElement.style.cursor = "default";
+  }
+});
+
+renderer.domElement.addEventListener("click",e=>{
+  mouse.x=(e.clientX/innerWidth)*2-1;mouse.y=-(e.clientY/innerHeight)*2+1;
+  ray.setFromCamera(mouse,camera);
+  const hits=ray.intersectObjects(comps);
+  if(hits.length){
+    const d=hits[0].object.userData;
+    openCompId = d.id;
+    const card=document.getElementById("infoCard");
+    card.style.display="block";card.style.left=Math.min(e.clientX+20,innerWidth-280)+"px";card.style.top=Math.min(e.clientY,innerHeight-200)+"px";
+    document.getElementById("icTitle").textContent=d.label;document.getElementById("icTitle").style.color=d.color;
+    document.getElementById("icSub").textContent=d.sub;
+    let h="";for(const[k,v]of Object.entries(d.details))h+=`<div class="info-row"><span>${k.replace(/_/g," ").toUpperCase()}</span><span>${v}</span></div>`;
+    document.getElementById("icBody").innerHTML=h;
+  }else{
+    document.getElementById("infoCard").style.display="none";
+    openCompId = null;
+  }
+});
+
+initTimeline();
+
+const clock=new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt=clock.getDelta();
+  if(state.isPlaying){
+    state.time+=dt*state.simSpeed;
+    autoRTLLogic(dt);
+    if(state.phase!=="PREFLIGHT"&&state.phase!=="POSTFLIGHT"){
+      const phys=computePhysics();
+      const isVTOL = state.phase === "VTOL TAKEOFF" || state.phase === "VTOL LANDING";
+      const isCruise = state.phase === "CRUISE SURVEY" || state.phase === "ON STATION";
+      const isTrans = state.phase === "TRANSITION FW" || state.phase === "BACK TRANS";
+      let powerDraw = phys.totalLoad;
+      state.battery_kwh -= (powerDraw / 1000) * dt * state.simSpeed / 3600;
+      if(state.battery_kwh<AIRCRAFT.battery_reserve_kwh)state.battery_kwh=AIRCRAFT.battery_reserve_kwh;
+      if(isCruise || isTrans) state.range+=(state.airspeed*3.6)*dt*state.simSpeed/1000;
+      lastPhys = phys;
+    }
+    if(Math.random()<0.06*state.simSpeed){const aw=wires.filter(w=>w.userData.active);if(aw.length)spawn(aw[Math.floor(Math.random()*aw.length)]);}
+    for(let i=packets.length-1;i>=0;i--){
+      const p=packets[i];p.userData.t+=p.userData.speed*dt*state.simSpeed;
+      if(p.userData.t>=1){scene.remove(p);packets.splice(i,1);continue;}
+      const pos=p.userData.wire.userData.curve.getPointAt(p.userData.t);p.position.copy(pos);
+      const sc=1+Math.sin(state.time*10+p.userData.t*20)*0.3;p.scale.setScalar(sc);
+    }
+    wires.forEach(w=>{
+      const isConnected = hoveredComp && (w.userData.fromId === hoveredComp.userData.id || w.userData.toId === hoveredComp.userData.id);
+      if (!isConnected) {
+        w.material.emissiveIntensity=w.userData.active?0.5+Math.sin(state.time*3+w.userData.id)*0.35:0.06;
+      }
+    });
+    if(lastPhys){
+      comps.forEach(c=>{
+        if(c === hoveredComp) return;
+        const ring=c.userData.warningRing;let warn=false;
+        if(c.userData.id==="engine"&&state.faults.pusher)warn=true;
+        if(c.userData.id==="vtol_m1"&&state.faults.vtolmotor)warn=true;
+        if(c.userData.id==="battery"&&(state.battery_kwh<AIRCRAFT.battery_reserve_kwh+0.8||state.faults.battery))warn=true;
+        if(c.userData.id==="telemetry"&&lastPhys.margin<-5)warn=true;
+        if(c.userData.id==="gnss"&&state.faults.gnssjam)warn=true;
+        if(c.userData.id==="payload_bay"&&state.faults.payload)warn=true;
+        if(c.userData.id==="parachute"&&(state.faults.geofence||state.battery_kwh<AIRCRAFT.battery_reserve_kwh+0.5))warn=true;
+        if(warn){ring.material.opacity=0.5+Math.sin(state.time*8)*0.4;c.material.emissiveIntensity=0.8+Math.sin(state.time*8)*0.5;}
+        else{ring.material.opacity=0;c.material.emissiveIntensity=0.35;}
+      });
+    }
+    document.getElementById("sPkt").textContent=packets.length;
+  }
+  if(!lastPhys) lastPhys = computePhysics();
+  updateUI(lastPhys);
+  updateInfoCardLive(lastPhys);
+  updateFCS(dt);
+  updateTimelineUI();
+  updatePropellers(dt);
+  updateAtmosphere();
+  controls.update();
+  renderer.render(scene,camera);
+}
+animate();
+
+window.addEventListener("resize",()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+
+document.addEventListener("keydown", (e) => {
+  if(["INPUT","TEXTAREA","SELECT"].includes(document.activeElement.tagName)) return;
+  if(e.code === "Space") { e.preventDefault(); togglePlay(); }
+  if(e.code === "KeyR") resetSim();
+  if(e.code === "KeyP") takeScreenshot();
+  if(e.code === "Digit1") toggleFault("lostlink");
+  if(e.code === "Digit2") toggleFault("vtolmotor");
+  if(e.code === "Digit3") toggleFault("pusher");
+  if(e.code === "Digit4") toggleFault("gnssjam");
+  if(e.code === "Digit5") toggleFault("geofence");
+  if(e.code === "Digit6") toggleFault("battery");
+  if(e.code === "Digit7") toggleFault("overheat");
+  if(e.code === "Digit8") toggleFault("payload");
+});
+
+function takeScreenshot() {
+  renderer.render(scene, camera);
+  const dataURL = renderer.domElement.toDataURL("image/png");
+  const link = document.createElement("a");
+  link.download = "GEOMINER1_" + fmtTime(state.time).replace(/:/g,"-") + ".png";
+  link.href = dataURL;
+  link.click();
+}
+
+updatePilotInputs();
+updateMissionStateFromTime();
+</script>
+</body>
+</html>
